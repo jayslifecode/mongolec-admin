@@ -6,6 +6,7 @@ import {
   ShoppingBag,
   Building2,
   Trophy,
+  BookOpen,
   FileText,
   MapPin,
   Heart,
@@ -45,6 +46,11 @@ export const sidebarData: SidebarData = {
               title: "Rallies",
               url: "/rallies",
               icon: Trophy,
+            },
+            {
+              title: "Stories",
+              url: "/stories",
+              icon: BookOpen,
             },
             {
               title: "Applications",

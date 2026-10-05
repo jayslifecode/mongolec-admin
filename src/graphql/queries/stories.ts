@@ -1,177 +1,61 @@
 import { gql } from '@apollo/client'
+import { STORY_FIELDS } from '../fragments/story'
+import { PAGINATION_FIELDS } from '../fragments/pagination'
 
 export const GET_STORIES = gql`
+  ${STORY_FIELDS}
+  ${PAGINATION_FIELDS}
   query GetStories(
-    $type: String
-    $status: String
-    $rallyId: ID
-    $featured: Boolean
+    $page: Int
     $limit: Int
-    $offset: Int
+    $type: StoryType
+    $status: ContentStatus
+    $featured: Boolean
+    $rallyId: ID
+    $search: String
+    $orderBy: String
+    $orderDirection: String
   ) {
     getStories(
+      page: $page
+      limit: $limit
       type: $type
       status: $status
-      rallyId: $rallyId
       featured: $featured
-      limit: $limit
-      offset: $offset
-    ) {
-      id
-      slug
-      title
-      excerpt
-      content
-      type
-      status
-      featured
-      author
-      role
-      featuredImage
-      gallery
-      videoUrl
-      beforeAfterData
-      impactSummary
-      tags
-      publishedAt
-      scheduledAt
-      rally {
-        id
-        name
-        slug
-        startDate
-        endDate
-      }
-      relatedRallies {
-        id
-        name
-        slug
-      }
-      createdAt
-      updatedAt
-    }
-  }
-`
-
-export const GET_STORY = gql`
-  query GetStory($id: ID!) {
-    getStory(id: $id) {
-      id
-      slug
-      title
-      excerpt
-      content
-      type
-      status
-      featured
-      author
-      role
-      featuredImage
-      gallery
-      videoUrl
-      beforeAfterData
-      impactSummary
-      tags
-      publishedAt
-      scheduledAt
-      rally {
-        id
-        name
-        slug
-        startDate
-        endDate
-      }
-      relatedRallies {
-        id
-        name
-        slug
-      }
-      createdAt
-      updatedAt
-    }
-  }
-`
-
-export const GET_PUBLISHED_STORIES = gql`
-  query GetPublishedStories(
-    $type: String
-    $rallyId: ID
-    $featured: Boolean
-    $limit: Int
-    $offset: Int
-  ) {
-    getPublishedStories(
-      type: $type
       rallyId: $rallyId
-      featured: $featured
-      limit: $limit
-      offset: $offset
+      search: $search
+      orderBy: $orderBy
+      orderDirection: $orderDirection
     ) {
-      id
-      slug
-      title
-      excerpt
-      type
-      featured
-      author
-      role
-      featuredImage
-      gallery
-      videoUrl
-      tags
-      publishedAt
-      rally {
-        id
-        name
-        slug
-        startDate
-        endDate
+      stories {
+        ...StoryFields
       }
-      relatedRallies {
-        id
-        name
-        slug
+      pagination {
+        ...PaginationFields
       }
     }
   }
 `
 
-export const GET_FEATURED_STORIES = gql`
-  query GetFeaturedStories($limit: Int, $type: String) {
-    getFeaturedStories(limit: $limit, type: $type) {
-      id
-      slug
-      title
-      excerpt
-      type
-      featured
-      author
-      role
-      featuredImage
-      gallery
-      videoUrl
-      tags
-      publishedAt
-      rally {
-        id
-        name
-        slug
-      }
+export const GET_STORY_BY_ID = gql`
+  ${STORY_FIELDS}
+  query GetStoryById($id: ID, $slug: String) {
+    getStory(id: $id, slug: $slug) {
+      ...StoryFields
     }
   }
 `
 
 export const GET_STORY_STATS = gql`
-  query GetStoryStats {
-    getStoryStats {
-      total
-      published
-      draft
-      featured
-      byType {
-        type
-        count
-      }
+  query GetStoryStats($rallyId: ID) {
+    getStoryStats(rallyId: $rallyId) {
+      totalStories
+      publishedStories
+      draftStories
+      featuredStories
+      impactStories
+      riderStories
+      rallyStories
     }
   }
 `

@@ -1,82 +1,30 @@
 import { gql } from '@apollo/client'
+import { STORY_FIELDS } from '../fragments/story'
 
 export const CREATE_STORY = gql`
-  mutation CreateStory($input: CreateStoryInput!) {
-    createStory(input: $input) {
-      id
-      slug
-      title
-      excerpt
-      content
-      type
-      status
-      featured
-      author
-      role
-      featuredImage
-      gallery
-      videoUrl
-      beforeAfterData
-      impactSummary
-      tags
-      publishedAt
-      scheduledAt
-      rally {
-        id
-        name
-        slug
-      }
-      relatedRallies {
-        id
-        name
-        slug
-      }
-      createdAt
-      updatedAt
+  ${STORY_FIELDS}
+  mutation CreateStory($input: StoryCreateInput!) {
+    createStory(data: $input) {
+      ...StoryFields
     }
   }
 `
 
 export const UPDATE_STORY = gql`
-  mutation UpdateStory($id: ID!, $input: UpdateStoryInput!) {
-    updateStory(id: $id, input: $input) {
-      id
-      slug
-      title
-      excerpt
-      content
-      type
-      status
-      featured
-      author
-      role
-      featuredImage
-      gallery
-      videoUrl
-      beforeAfterData
-      impactSummary
-      tags
-      publishedAt
-      scheduledAt
-      rally {
-        id
-        name
-        slug
-      }
-      relatedRallies {
-        id
-        name
-        slug
-      }
-      createdAt
-      updatedAt
+  ${STORY_FIELDS}
+  mutation UpdateStory($id: ID!, $input: StoryUpdateInput!) {
+    updateStory(id: $id, data: $input) {
+      ...StoryFields
     }
   }
 `
 
 export const DELETE_STORY = gql`
   mutation DeleteStory($id: ID!) {
-    deleteStory(id: $id)
+    deleteStory(id: $id) {
+      success
+      message
+    }
   }
 `
 
@@ -105,6 +53,15 @@ export const TOGGLE_STORY_FEATURED = gql`
     toggleStoryFeatured(id: $id) {
       id
       featured
+    }
+  }
+`
+
+export const UPDATE_STORY_ORDER = gql`
+  mutation UpdateStoryOrder($id: ID!, $order: Int!) {
+    updateStoryOrder(id: $id, order: $order) {
+      id
+      displayOrder
     }
   }
 `
