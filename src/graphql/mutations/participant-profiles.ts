@@ -1,6 +1,20 @@
 import { gql } from '@apollo/client'
 
+const PARTICIPANT_RALLY_LINK_FIELDS = gql`
+  fragment ParticipantMutationRallyLinkFields on ParticipantRallyLink {
+    rally {
+      id
+      slug
+      title
+      startDate
+    }
+    year
+    role
+  }
+`
+
 export const CREATE_PARTICIPANT_PROFILE = gql`
+  ${PARTICIPANT_RALLY_LINK_FIELDS}
   mutation CreateParticipantProfile($input: CreateParticipantInput!) {
     createParticipant(input: $input) {
       id
@@ -11,7 +25,13 @@ export const CREATE_PARTICIPANT_PROFILE = gql`
       bio
       isActive
       displayOrder
-      rallyYears
+      slug
+      honoraryTitle
+      rallyCount
+      tier
+      rallies {
+        ...ParticipantMutationRallyLinkFields
+      }
       createdAt
       updatedAt
     }
@@ -19,6 +39,7 @@ export const CREATE_PARTICIPANT_PROFILE = gql`
 `
 
 export const UPDATE_PARTICIPANT_PROFILE = gql`
+  ${PARTICIPANT_RALLY_LINK_FIELDS}
   mutation UpdateParticipantProfile($id: ID!, $input: UpdateParticipantInput!) {
     updateParticipant(id: $id, input: $input) {
       id
@@ -29,7 +50,13 @@ export const UPDATE_PARTICIPANT_PROFILE = gql`
       bio
       isActive
       displayOrder
-      rallyYears
+      slug
+      honoraryTitle
+      rallyCount
+      tier
+      rallies {
+        ...ParticipantMutationRallyLinkFields
+      }
       createdAt
       updatedAt
     }

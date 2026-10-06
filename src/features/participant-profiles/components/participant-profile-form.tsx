@@ -1,28 +1,62 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useMutation } from '@apollo/client/react'
+import { useMutation, useQuery } from '@apollo/client/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle, Loader2, X, Plus } from 'lucide-react'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import { Checkbox } from '@/components/ui/checkbox'
+import { AlertCircle, Loader2, X, ChevronsUpDown } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import {
   CREATE_PARTICIPANT_PROFILE,
   UPDATE_PARTICIPANT_PROFILE,
 } from '@/graphql/mutations/participant-profiles'
+import { GET_RALLIES } from '@/graphql/queries/rallies'
 import { FormSection } from '@/components/admin'
+import { sortRalliesByStartDateDesc, type RallyOption } from '../lib/rally-options'
+import { validateParticipantForm } from '../lib/validation'
 import type { ParticipantProfile } from '../types'
+import { riderTierConfig } from '../types'
 
 interface ParticipantProfileFormProps {
   mode: 'create' | 'edit'
   initialData?: ParticipantProfile
   participantId?: string
+}
+
+interface GetRalliesForSelectData {
+  getRallies: {
+    rallies: Array<{
+      id: string
+      title: string | { en: string; mn: string }
+      startDate: string
+    }>
+  }
+}
+
+function getRallyDisplayTitle(title: string | { en: string; mn: string }): string {
+  if (typeof title === 'string') return title
+  return title.en || title.mn || ''
 }
 
 export function ParticipantProfileForm({
@@ -32,7 +66,23 @@ export function ParticipantProfileForm({
 }: ParticipantProfileFormProps) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
-  const [yearInput, setYearInput] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [rallyPopoverOpen, setRallyPopoverOpen] = useState(false)
+
+  const { data: ralliesData } = useQuery<GetRalliesForSelectData>(GET_RALLIES, {
+    variables: { limit: 500, page: 1 },
+  })
+
+  const rallyOptions: RallyOption[] = useMemo(() => {
+    const rallies = ralliesData?.getRallies?.rallies ?? []
+    const mapped = rallies.map((rally) => ({
+      id: rally.id,
+      title: getRallyDisplayTitle(rally.title),
+      year: new Date(rally.startDate).getFullYear(),
+      startDate: rally.startDate,
+    }))
+    return sortRalliesByStartDateDesc(mapped)
+  }, [ralliesData])
 
   const [formData, setFormData] = useState({
     firstName: initialData?.firstName ?? '',
@@ -42,7 +92,9 @@ export function ParticipantProfileForm({
     bio: initialData?.bio ?? '',
     displayOrder: initialData?.displayOrder?.toString() ?? '0',
     isActive: initialData?.isActive ?? true,
-    rallyYears: initialData?.rallyYears ?? [],
+    slug: initialData?.slug ?? '',
+    honoraryTitle: initialData?.honoraryTitle ?? '',
+    rallyIds: initialData?.rallies?.map((link) => link.rally.id) ?? [],
   })
 
   const [createParticipant, { loading: createLoading }] = useMutation(
@@ -75,57 +127,73 @@ export function ParticipantProfileForm({
 
   const loading = createLoading || updateLoading
 
-  const handleChange = (field: string, value: string | boolean | number[]) => {
+  const handleChange = (
+    field: string,
+    value: string | boolean | string[],
+  ) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  const addYear = () => {
-    const year = parseInt(yearInput)
-    if (!year || year < 2000 || year > 2100) {
-      toast.error('Enter a valid year (2000–2100)')
-      return
-    }
-    if (formData.rallyYears.includes(year)) {
-      toast.error('Year already added')
-      return
-    }
-    handleChange('rallyYears', [...formData.rallyYears, year])
-    setYearInput('')
-  }
-
-  const removeYear = (year: number) => {
+  const toggleRally = (rallyId: string) => {
+    const isSelected = formData.rallyIds.includes(rallyId)
     handleChange(
-      'rallyYears',
-      formData.rallyYears.filter((y) => y !== year),
+      'rallyIds',
+      isSelected
+        ? formData.rallyIds.filter((id) => id !== rallyId)
+        : [...formData.rallyIds, rallyId],
     )
   }
+
+  const removeRally = (rallyId: string) => {
+    handleChange('rallyIds', formData.rallyIds.filter((id) => id !== rallyId))
+  }
+
+  const selectedRallies = formData.rallyIds
+    .map((id) => rallyOptions.find((rally) => rally.id === id))
+    .filter((rally): rally is RallyOption => Boolean(rally))
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
 
-    if (!formData.firstName.trim()) {
-      setError('First name is required')
-      return
-    }
-    if (!formData.lastName.trim()) {
-      setError('Last name is required')
-      return
-    }
-    if (!formData.country.trim()) {
-      setError('Country is required')
-      return
-    }
-
-    const input: Record<string, unknown> = {
-      firstName: formData.firstName.trim(),
-      lastName: formData.lastName.trim(),
-      photo: formData.photo.trim() || null,
-      country: formData.country.trim(),
-      bio: formData.bio.trim() || null,
+    const values = {
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      photo: formData.photo,
+      country: formData.country,
+      bio: formData.bio,
       displayOrder: parseInt(formData.displayOrder) || 0,
       isActive: formData.isActive,
-      rallyYears: formData.rallyYears,
+      slug: formData.slug,
+      honoraryTitle: formData.honoraryTitle,
+      rallyIds: formData.rallyIds,
+    }
+
+    const validation = validateParticipantForm(values)
+    if (!validation.isValid) {
+      setFieldErrors(validation.fieldErrors)
+      const firstError = Object.values(validation.fieldErrors)[0]
+      setError(firstError ?? 'Please fix the errors below')
+      toast.error(firstError ?? 'Please fix the errors below')
+      return
+    }
+    setFieldErrors({})
+
+    const input: Record<string, unknown> = {
+      firstName: values.firstName.trim(),
+      lastName: values.lastName.trim(),
+      photo: values.photo.trim() || null,
+      country: values.country.trim(),
+      bio: values.bio.trim() || null,
+      displayOrder: values.displayOrder,
+      isActive: values.isActive,
+      honoraryTitle: values.honoraryTitle.trim() || null,
+      rallyIds: values.rallyIds,
+    }
+
+    const trimmedSlug = values.slug.trim()
+    if (trimmedSlug) {
+      input.slug = trimmedSlug
     }
 
     if (mode === 'create') {
@@ -134,6 +202,8 @@ export function ParticipantProfileForm({
       updateParticipant({ variables: { id: participantId, input } })
     }
   }
+
+  const tier = initialData?.tier
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
@@ -156,6 +226,9 @@ export function ParticipantProfileForm({
               placeholder="First name"
               required
             />
+            {fieldErrors.firstName && (
+              <p className="text-xs text-destructive">{fieldErrors.firstName}</p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label>
@@ -167,6 +240,9 @@ export function ParticipantProfileForm({
               placeholder="Last name"
               required
             />
+            {fieldErrors.lastName && (
+              <p className="text-xs text-destructive">{fieldErrors.lastName}</p>
+            )}
           </div>
         </div>
 
@@ -181,6 +257,9 @@ export function ParticipantProfileForm({
               placeholder="E.g., Mongolia"
               required
             />
+            {fieldErrors.country && (
+              <p className="text-xs text-destructive">{fieldErrors.country}</p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label>Display Order</Label>
@@ -193,6 +272,32 @@ export function ParticipantProfileForm({
             />
           </div>
         </div>
+
+        {mode === 'edit' && (
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Slug</Label>
+              <Input
+                value={formData.slug}
+                onChange={(e) => handleChange('slug', e.target.value)}
+                placeholder="Auto-generated by the backend"
+              />
+              <p className="text-xs text-muted-foreground">
+                Auto-generated from the name; override only if needed.
+              </p>
+            </div>
+            {tier && (
+              <div className="space-y-1.5">
+                <Label>Computed Tier</Label>
+                <div>
+                  <Badge className={riderTierConfig[tier].className}>
+                    {riderTierConfig[tier].label}
+                  </Badge>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </FormSection>
 
       <FormSection title="Photo">
@@ -222,46 +327,87 @@ export function ParticipantProfileForm({
         />
       </FormSection>
 
-      <FormSection title="Rally Years" description="Years this participant attended a rally">
-        <div className="flex gap-2">
-          <Input
-            type="number"
-            value={yearInput}
-            onChange={(e) => setYearInput(e.target.value)}
-            placeholder="E.g., 2024"
-            className="w-36"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                addYear()
-              }
-            }}
-          />
-          <Button type="button" variant="outline" size="sm" onClick={addYear}>
-            <Plus className="h-4 w-4 mr-1" />
-            Add Year
-          </Button>
-        </div>
-        {formData.rallyYears.length > 0 && (
+      <FormSection
+        title="Rallies attended"
+        description="Rallies this participant took part in"
+      >
+        <Popover open={rallyPopoverOpen} onOpenChange={setRallyPopoverOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              role="combobox"
+              aria-expanded={rallyPopoverOpen}
+              className="w-full justify-between"
+            >
+              {formData.rallyIds.length > 0
+                ? `${formData.rallyIds.length} rally${formData.rallyIds.length === 1 ? '' : ' rallies'} selected`
+                : 'Select rallies…'}
+              <ChevronsUpDown className="h-4 w-4 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+            <Command>
+              <CommandInput placeholder="Search rallies…" />
+              <CommandList>
+                <CommandEmpty>No rallies found.</CommandEmpty>
+                <CommandGroup>
+                  {rallyOptions.map((rally) => {
+                    const isSelected = formData.rallyIds.includes(rally.id)
+                    return (
+                      <CommandItem
+                        key={rally.id}
+                        value={`${rally.title} ${rally.year}`}
+                        onSelect={() => toggleRally(rally.id)}
+                      >
+                        <Checkbox checked={isSelected} className="mr-2" />
+                        {rally.title} ({rally.year})
+                      </CommandItem>
+                    )
+                  })}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+
+        {selectedRallies.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-2">
-            {[...formData.rallyYears]
-              .sort((a, b) => a - b)
-              .map((year) => (
-                <span
-                  key={year}
-                  className="inline-flex items-center gap-1 rounded-md bg-muted px-2.5 py-1 text-sm font-medium"
+            {selectedRallies.map((rally) => (
+              <span
+                key={rally.id}
+                className="inline-flex items-center gap-1 rounded-md bg-muted px-2.5 py-1 text-sm font-medium"
+              >
+                {rally.title} ({rally.year})
+                <button
+                  type="button"
+                  onClick={() => removeRally(rally.id)}
+                  className="ml-0.5 text-muted-foreground hover:text-foreground"
                 >
-                  {year}
-                  <button
-                    type="button"
-                    onClick={() => removeYear(year)}
-                    className="ml-0.5 text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </span>
-              ))}
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            ))}
           </div>
+        )}
+
+        <p className="text-xs text-muted-foreground mt-2">
+          {formData.rallyIds.length} rally{formData.rallyIds.length === 1 ? '' : ' rallies'}{' '}
+          attended
+        </p>
+      </FormSection>
+
+      <FormSection
+        title="Honorary Title"
+        description="Overrides the computed tier badge, e.g. Board Member"
+      >
+        <Input
+          value={formData.honoraryTitle}
+          onChange={(e) => handleChange('honoraryTitle', e.target.value)}
+          placeholder="E.g., Board Member"
+        />
+        {fieldErrors.honoraryTitle && (
+          <p className="text-xs text-destructive">{fieldErrors.honoraryTitle}</p>
         )}
       </FormSection>
 

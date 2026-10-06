@@ -26,8 +26,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { DataTable, createCreatedAtColumn } from '@/components/data-table'
+import { DataTable, createUpdatedAtColumn } from '@/components/data-table'
 import type { ParticipantProfile } from '../types'
+import { riderTierConfig } from '../types'
 import { DELETE_PARTICIPANT_PROFILE } from '@/graphql/mutations/participant-profiles'
 
 function avatarColor(name: string) {
@@ -111,29 +112,39 @@ function buildColumns(
             )}
             <div className="min-w-0 flex-1">
               <div className="font-medium truncate">{fullName}</div>
-              <div className="text-xs text-muted-foreground truncate">{p.country}</div>
             </div>
           </div>
         )
       },
     },
     {
-      accessorKey: 'rallyYears',
-      header: 'Rally Years',
-      cell: ({ getValue }) => {
-        const years = getValue<number[]>()
+      id: 'country',
+      header: 'Country',
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground">{row.original.country}</span>
+      ),
+    },
+    {
+      id: 'rallies',
+      header: 'Rallies',
+      cell: ({ row }) => {
+        const p = row.original
+        const tierInfo = riderTierConfig[p.tier]
         return (
-          <span className="text-sm text-muted-foreground">
-            {years.length > 0 ? years.sort((a, b) => a - b).join(', ') : '—'}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-mono text-muted-foreground">{p.rallyCount}</span>
+            <Badge className={tierInfo.className}>{tierInfo.label}</Badge>
+          </div>
         )
       },
     },
     {
-      accessorKey: 'displayOrder',
-      header: 'Order',
-      cell: ({ getValue }) => (
-        <span className="text-sm font-mono text-muted-foreground">#{getValue<number>()}</span>
+      id: 'honoraryTitle',
+      header: 'Honorary Title',
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground">
+          {row.original.honoraryTitle || '—'}
+        </span>
       ),
     },
     {
@@ -151,7 +162,7 @@ function buildColumns(
         )
       },
     },
-    createCreatedAtColumn<ParticipantProfile>(),
+    createUpdatedAtColumn<ParticipantProfile>(),
     {
       id: 'actions',
       enableHiding: false,

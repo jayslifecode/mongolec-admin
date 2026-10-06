@@ -1,6 +1,20 @@
 import { gql } from '@apollo/client'
 
+const PARTICIPANT_RALLY_LINK_FIELDS = gql`
+  fragment ParticipantRallyLinkFields on ParticipantRallyLink {
+    rally {
+      id
+      slug
+      title
+      startDate
+    }
+    year
+    role
+  }
+`
+
 export const GET_PARTICIPANT_PROFILES = gql`
+  ${PARTICIPANT_RALLY_LINK_FIELDS}
   query GetParticipantProfiles($limit: Int, $page: Int, $isActive: Boolean) {
     getParticipants(limit: $limit, page: $page, isActive: $isActive) {
       participants {
@@ -12,7 +26,13 @@ export const GET_PARTICIPANT_PROFILES = gql`
         bio
         isActive
         displayOrder
-        rallyYears
+        slug
+        honoraryTitle
+        rallyCount
+        tier
+        rallies {
+          ...ParticipantRallyLinkFields
+        }
         createdAt
         updatedAt
       }
@@ -29,6 +49,7 @@ export const GET_PARTICIPANT_PROFILES = gql`
 `
 
 export const GET_PARTICIPANT_PROFILE = gql`
+  ${PARTICIPANT_RALLY_LINK_FIELDS}
   query GetParticipantProfile($id: ID!) {
     getParticipant(id: $id) {
       id
@@ -39,7 +60,13 @@ export const GET_PARTICIPANT_PROFILE = gql`
       bio
       isActive
       displayOrder
-      rallyYears
+      slug
+      honoraryTitle
+      rallyCount
+      tier
+      rallies {
+        ...ParticipantRallyLinkFields
+      }
       createdAt
       updatedAt
     }
