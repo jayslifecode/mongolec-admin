@@ -7,21 +7,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { AlertCircle, Users } from 'lucide-react'
 import { GET_PARTICIPANT_PROFILE } from '@/graphql/queries/participant-profiles'
 import { PageHeader, EmptyState } from '@/components/admin'
+import type { ParticipantProfile } from '@/features/participant-profiles/types'
 
 interface GetParticipantData {
-  getParticipant: {
-    id: string
-    firstName: string
-    lastName: string
-    photo?: string
-    country: string
-    bio?: string
-    isActive: boolean
-    displayOrder: number
-    rallyYears: number[]
-    createdAt: string
-    updatedAt: string
-  } | null
+  getParticipant: ParticipantProfile | null
 }
 
 export default function EditParticipantProfilePage() {

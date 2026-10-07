@@ -41,6 +41,7 @@ export function CommandMenu() {
         <CommandGroup heading="Navigation">
           <CommandItem onSelect={() => runCommand(() => router.push('/'))}>Dashboard</CommandItem>
           <CommandItem onSelect={() => runCommand(() => router.push('/rallies'))}>Rallies</CommandItem>
+          <CommandItem onSelect={() => runCommand(() => router.push('/stories'))}>Stories</CommandItem>
           <CommandItem onSelect={() => runCommand(() => router.push('/applications'))}>Applications</CommandItem>
           <CommandItem onSelect={() => runCommand(() => router.push('/nominations'))}>Nominations</CommandItem>
           <CommandItem onSelect={() => runCommand(() => router.push('/rangers'))}>Rangers</CommandItem>
