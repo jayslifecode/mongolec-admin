@@ -14,6 +14,9 @@ interface GetMerchDiscountsData {
   getMerchDiscounts: any[]
 }
 
+// Admin pages are auth-gated and query the API on render; never prerender them at build.
+export const dynamic = 'force-dynamic'
+
 export default function MerchDiscountsPage() {
   const { data, loading, error } = useQuery<GetMerchDiscountsData>(GET_MERCH_DISCOUNTS, {
     variables: { limit: 100, offset: 0 },

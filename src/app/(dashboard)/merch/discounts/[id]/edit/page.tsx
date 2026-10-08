@@ -21,6 +21,9 @@ interface GetMerchDiscountByIdData {
   } | null
 }
 
+// Admin pages are auth-gated and query the API on render; never prerender them at build.
+export const dynamic = 'force-dynamic'
+
 export default function MerchDiscountEditPage() {
   const params = useParams()
   const discountId = params.id as string
