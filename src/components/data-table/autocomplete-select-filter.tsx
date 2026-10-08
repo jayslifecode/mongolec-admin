@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@apollo/client/react'
+import { gql } from '@apollo/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -48,6 +49,14 @@ interface AutocompleteSelectFilterProps {
   placeholder?: string
 }
 
+// Apollo Client 4 validates the document even when `skip` is true, so a static-options
+// instance (no customQuery) must still hand useQuery a parsed, never-executed query.
+const AUTOCOMPLETE_NOOP_QUERY = gql`
+  query AutocompleteNoop {
+    __typename
+  }
+`
+
 export function AutocompleteSelectFilter({
   value,
   onChange,
@@ -67,7 +76,7 @@ export function AutocompleteSelectFilter({
 
   // GraphQL query execution
   const { loading: queryLoading, data } = useQuery(
-    customQuery?.query || null,
+    customQuery?.query ?? AUTOCOMPLETE_NOOP_QUERY,
     {
       skip: !customQuery,
       variables: customQuery
