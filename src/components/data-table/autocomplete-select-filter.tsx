@@ -74,6 +74,13 @@ export function AutocompleteSelectFilter({
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
   const { setLabels } = useFilterLabelStore()
 
+  // Static options usually arrive asynchronously (e.g. a product list fetched by the parent),
+  // so keep the item list in sync instead of only seeding it once at mount — otherwise the
+  // selected chips fall back to raw ids until the user interacts with the control.
+  useEffect(() => {
+    if (!customQuery && staticOptions) setAllItems(staticOptions)
+  }, [customQuery, staticOptions])
+
   // GraphQL query execution
   const { loading: queryLoading, data } = useQuery(
     customQuery?.query ?? AUTOCOMPLETE_NOOP_QUERY,
