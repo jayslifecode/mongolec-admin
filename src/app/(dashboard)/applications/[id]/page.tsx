@@ -18,6 +18,12 @@ import {
   UpdatePaymentStatusButton,
 } from '@/features/applications/components/application-actions'
 import { applicationStatusConfig, paymentStatusConfig } from '@/features/applications/types'
+import {
+  formatResponse,
+  howHeardLabel,
+  medicalCertificationLabel,
+  safeHttpUrl,
+} from '@/features/applications/lib/format-response'
 import { PageHeader, FormSection, DetailField, EmptyState } from '@/components/admin'
 
 interface ApplicationDetail {
@@ -35,26 +41,32 @@ interface ApplicationDetail {
   status: string
   isRider: boolean
   hasMotorcycleLicense?: boolean
-  ridingExperience?: string
+  // JSON columns: plain strings on older records, small objects from the public website
+  ridingExperience?: unknown
+  ridingVideoUrl?: string | null
   firstName: string
   lastName: string
   email: string
   phone: string
   country: string
   city: string
-  address?: string
+  address?: unknown
   birthdate?: string
+  hasValidPassport: boolean
   isMedicalProfessional: boolean
-  medicalConditions?: string
-  dietaryRestrictions?: string
+  medicalCertificationType?: string | null
+  medicalConditions?: unknown
+  dietaryRestrictions?: unknown
   emergencyContactFirstName: string
   emergencyContactLastName: string
   emergencyContactPhone: string
   emergencyContactEmail: string
   emergencyContactRelationship: string
-  motivation?: string
-  travelExperience?: string
-  futureLocations?: string
+  socialMediaLinks?: unknown
+  motivation?: unknown
+  travelExperience?: unknown
+  futureLocations?: unknown
+  howHeard?: string | null
   depositPaid: boolean
   depositAmount?: number
   fullyPaid: boolean
@@ -121,6 +133,20 @@ export default function ApplicationDetailPage() {
   }
   const paymentConf = paymentStatusConfig[getPaymentStatus() as keyof typeof paymentStatusConfig]
 
+  const address = formatResponse(application.address)
+  const ridingExperience = formatResponse(application.ridingExperience)
+  const ridingVideoText = formatResponse(application.ridingVideoUrl)
+  const ridingVideoHref = safeHttpUrl(application.ridingVideoUrl)
+  const medicalCertification = medicalCertificationLabel(application.medicalCertificationType)
+  const medicalConditions = formatResponse(application.medicalConditions)
+  const dietaryRestrictions = formatResponse(application.dietaryRestrictions)
+  const socialMediaLinks = formatResponse(application.socialMediaLinks)
+  const motivation = formatResponse(application.motivation)
+  const travelExperience = formatResponse(application.travelExperience)
+  const futureLocations = formatResponse(application.futureLocations)
+  const howHeard = howHeardLabel(application.howHeard)
+  const hasResponses = Boolean(motivation || travelExperience || futureLocations || socialMediaLinks || howHeard)
+
   return (
     <div className="space-y-5 p-6">
       <PageHeader
@@ -172,9 +198,10 @@ export default function ApplicationDetailPage() {
               <DetailField label="Birthdate" value={formatDate(application.birthdate)} icon={Calendar} />
               <DetailField label="Country" value={application.country} icon={MapPin} />
               <DetailField label="City" value={application.city} />
+              <DetailField label="Valid Passport" value={application.hasValidPassport ? 'Yes' : 'No'} />
             </div>
-            {application.address && (
-              <DetailField label="Address" value={application.address} className="mt-2" />
+            {address && (
+              <DetailField label="Address" value={address} className="mt-2" />
             )}
           </FormSection>
 
@@ -205,7 +232,29 @@ export default function ApplicationDetailPage() {
                     </span>
                   }
                 />
-                <DetailField label="Riding Experience" value={application.ridingExperience} />
+                <DetailField
+                  label="Riding Experience"
+                  value={ridingExperience && <span className="whitespace-pre-wrap">{ridingExperience}</span>}
+                />
+                {ridingVideoText && (
+                  <DetailField
+                    label="Riding Videos"
+                    value={
+                      ridingVideoHref ? (
+                        <a
+                          href={ridingVideoHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="break-all text-primary underline underline-offset-2"
+                        >
+                          {ridingVideoText}
+                        </a>
+                      ) : (
+                        <span className="break-all">{ridingVideoText}</span>
+                      )
+                    }
+                  />
+                )}
               </div>
             )}
           </FormSection>
@@ -223,12 +272,15 @@ export default function ApplicationDetailPage() {
                   </span>
                 }
               />
+              {medicalCertification && (
+                <DetailField label="Certification" value={medicalCertification} />
+              )}
             </div>
-            {application.medicalConditions && (
-              <DetailField label="Medical Conditions" value={application.medicalConditions} className="mt-2" />
+            {medicalConditions && (
+              <DetailField label="Medical Conditions" value={medicalConditions} className="mt-2" />
             )}
-            {application.dietaryRestrictions && (
-              <DetailField label="Dietary Restrictions" value={application.dietaryRestrictions} className="mt-2" />
+            {dietaryRestrictions && (
+              <DetailField label="Dietary Restrictions" value={dietaryRestrictions} className="mt-2" />
             )}
           </FormSection>
 
@@ -243,16 +295,22 @@ export default function ApplicationDetailPage() {
           </FormSection>
 
           {/* Application Responses */}
-          {(application.motivation || application.travelExperience || application.futureLocations) && (
+          {hasResponses && (
             <FormSection title="Application Responses">
-              {application.motivation && (
-                <DetailField label="Motivation" value={<span className="whitespace-pre-wrap">{application.motivation}</span>} />
+              {motivation && (
+                <DetailField label="Motivation" value={<span className="whitespace-pre-wrap">{motivation}</span>} />
               )}
-              {application.travelExperience && (
-                <DetailField label="Travel Experience" value={<span className="whitespace-pre-wrap">{application.travelExperience}</span>} className="mt-3" />
+              {travelExperience && (
+                <DetailField label="Travel Experience" value={<span className="whitespace-pre-wrap">{travelExperience}</span>} className="mt-3" />
               )}
-              {application.futureLocations && (
-                <DetailField label="Future Locations of Interest" value={<span className="whitespace-pre-wrap">{application.futureLocations}</span>} className="mt-3" />
+              {futureLocations && (
+                <DetailField label="Future Locations of Interest" value={<span className="whitespace-pre-wrap">{futureLocations}</span>} className="mt-3" />
+              )}
+              {socialMediaLinks && (
+                <DetailField label="Social Media" value={<span className="whitespace-pre-wrap break-all">{socialMediaLinks}</span>} className="mt-3" />
+              )}
+              {howHeard && (
+                <DetailField label="How They Heard About Us" value={howHeard} className="mt-3" />
               )}
             </FormSection>
           )}
