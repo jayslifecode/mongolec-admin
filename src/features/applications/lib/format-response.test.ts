@@ -46,6 +46,16 @@ describe('formatResponse', () => {
     expect(formatResponse({ locations: ['Mongolia', 'Other'], other: 'Chile' })).toBe('Mongolia, Other, Chile')
   })
 
+  test('keeps a readable order when the database returns keys reordered (jsonb sorts them)', () => {
+    // Arrange: Postgres jsonb returns keys shortest-first, not in the order the website wrote them
+    const address = { state: 'California', street: '123 Main St', postalCode: '94102' }
+    const futureLocations = { other: 'Chile', locations: ['Mongolia', 'Other'] }
+
+    // Act + Assert
+    expect(formatResponse(address)).toBe('123 Main St, California, 94102')
+    expect(formatResponse(futureLocations)).toBe('Mongolia, Other, Chile')
+  })
+
   test('formats numbers and booleans as text', () => {
     expect(formatResponse(12)).toBe('12')
     expect(formatResponse(true)).toBe('Yes')

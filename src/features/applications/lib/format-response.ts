@@ -23,6 +23,21 @@ const HOW_HEARD_LABELS: Record<string, string> = {
 const OTHER_PREFIX = 'other:'
 const LIST_SEPARATOR = ', '
 
+/**
+ * Postgres jsonb returns object keys shortest-first, not in the order the website wrote them,
+ * so known keys are read in this reading order; any other keys follow in their stored order.
+ */
+const KEY_DISPLAY_ORDER = ['description', 'text', 'notes', 'links', 'locations', 'other', 'street', 'city', 'state', 'postalCode', 'country']
+
+function orderedValues(record: object): unknown[] {
+  const entries = Object.entries(record)
+  const rank = (key: string): number => {
+    const index = KEY_DISPLAY_ORDER.indexOf(key)
+    return index === -1 ? KEY_DISPLAY_ORDER.length : index
+  }
+  return [...entries].sort(([a], [b]) => rank(a) - rank(b)).map(([, value]) => value)
+}
+
 function joinParts(parts: unknown[]): string | undefined {
   const texts = parts.map(formatResponse).filter((text): text is string => Boolean(text))
   return texts.length ? texts.join(LIST_SEPARATOR) : undefined
@@ -35,7 +50,7 @@ export function formatResponse(value: unknown): string | undefined {
   if (typeof value === 'boolean') return value ? 'Yes' : 'No'
   if (typeof value === 'number') return String(value)
   if (Array.isArray(value)) return joinParts(value)
-  if (typeof value === 'object') return joinParts(Object.values(value))
+  if (typeof value === 'object') return joinParts(orderedValues(value))
   return undefined
 }
 
