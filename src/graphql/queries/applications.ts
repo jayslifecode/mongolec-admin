@@ -81,6 +81,7 @@ export const GET_APPLICATION = gql`
       isRider
       hasMotorcycleLicense
       ridingExperience
+      ridingVideoUrl
       firstName
       lastName
       email
@@ -89,7 +90,9 @@ export const GET_APPLICATION = gql`
       city
       address
       birthdate
+      hasValidPassport
       isMedicalProfessional
+      medicalCertificationType
       medicalConditions
       dietaryRestrictions
       emergencyContactFirstName
@@ -97,9 +100,11 @@ export const GET_APPLICATION = gql`
       emergencyContactPhone
       emergencyContactEmail
       emergencyContactRelationship
+      socialMediaLinks
       motivation
       travelExperience
       futureLocations
+      howHeard
       depositPaid
       depositAmount
       fullyPaid
