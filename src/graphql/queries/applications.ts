@@ -55,6 +55,10 @@ export const GET_APPLICATIONS = gql`
         reviewedAt
         createdAt
         updatedAt
+        acceptance {
+          id
+          submittedAt
+        }
       }
       pagination {
         ...PaginationFields
@@ -113,6 +117,38 @@ export const GET_APPLICATION = gql`
       reviewedAt
       createdAt
       updatedAt
+      acceptanceUrl
+      acceptance {
+        id
+        firstName
+        lastName
+        email
+        agreedToCommitment
+        agreedToLiability
+        usePastPhotoAndBio
+        photoUrl
+        bio
+        shippingAddress
+        tshirtSize
+        dietaryRestrictions
+        roomingPreference
+        roommatePreference
+        questions
+        hasPassport
+        passportFileName
+        submittedAt
+      }
+    }
+  }
+`
+
+/** Admin-only download of the passport copy attached to an acceptance letter. */
+export const GET_ACCEPTANCE_PASSPORT = gql`
+  query GetAcceptancePassport($applicationId: ID!) {
+    getAcceptancePassport(applicationId: $applicationId) {
+      fileName
+      mimeType
+      base64
     }
   }
 `

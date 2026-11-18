@@ -26,6 +26,7 @@ import {
   UPDATE_RALLY,
 } from "@/graphql/mutations/rallies";
 import { toast } from "sonner";
+import { EMPTY_TERMS_FORM, termsFromForm, termsToForm } from "@/features/rallies/lib/acceptance-terms";
 import type { Rally } from "../types";
 
 interface RallyFormProps {
@@ -69,6 +70,9 @@ export function RallyForm({
         maxParticipants: initialData.maxParticipants || 0,
         heroImage: initialData.heroImage || "",
         heroVideo: initialData.heroVideo || "",
+        photoCredit: initialData.photoCredit || "",
+        isPlaceholder: initialData.isPlaceholder ?? false,
+        terms: termsToForm(initialData.acceptanceTerms),
         isRecruiting: initialData.isRecruiting ?? false,
         applicationDeadline: initialData.applicationDeadline ? initialData.applicationDeadline.split('T')[0] : "",
         status: initialData.status || "DRAFT",
@@ -86,6 +90,9 @@ export function RallyForm({
       maxParticipants: 0,
       heroImage: "",
       heroVideo: "",
+      photoCredit: "",
+      isPlaceholder: false,
+      terms: EMPTY_TERMS_FORM,
       isRecruiting: false,
       applicationDeadline: "",
       status: "DRAFT",
@@ -138,6 +145,9 @@ export function RallyForm({
         maxParticipants: formData.maxParticipants || null,
         heroImage: heroImageUrl,
         heroVideo: formData.heroVideo || null,
+        photoCredit: formData.photoCredit.trim() || null,
+        isPlaceholder: formData.isPlaceholder,
+        acceptanceTerms: termsFromForm(formData.terms),
         isRecruiting: formData.isRecruiting,
         applicationDeadline: formData.applicationDeadline ? new Date(formData.applicationDeadline).toISOString() : null,
       };
@@ -426,6 +436,75 @@ export function RallyForm({
         </div>
       </FormSection>
 
+      {/* Photo credit (round 4) */}
+      <FormSection title="Photo credit" description='Shown under the gallery as "Photos by: …"'>
+        <div className="space-y-2">
+          <Label htmlFor="photoCredit">Photos by</Label>
+          <Input
+            id="photoCredit"
+            value={formData.photoCredit}
+            onChange={(e) => setFormData((prev) => ({ ...prev, photoCredit: e.target.value }))}
+            placeholder="e.g. Temuujin Otgonbayar"
+            disabled={isReadOnly}
+          />
+        </div>
+      </FormSection>
+
+      {/* Acceptance letter amounts (round 4) */}
+      <FormSection
+        title="Acceptance letter"
+        description="Amounts quoted in the letter approved riders sign. Leave empty to omit them."
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          {(
+            [
+              ["minimumContribution", "Minimum contribution", "11000"],
+              ["deposit", "Deposit", "5750"],
+              ["nonRefundable", "Non-refundable part of deposit", "4000"],
+              ["currency", "Currency", "USD"],
+            ] as const
+          ).map(([key, label, placeholder]) => (
+            <div key={key} className="space-y-2">
+              <Label htmlFor={`terms-${key}`}>{label}</Label>
+              <Input
+                id={`terms-${key}`}
+                inputMode={key === "currency" ? "text" : "numeric"}
+                value={formData.terms[key]}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, terms: { ...prev.terms, [key]: e.target.value } }))
+                }
+                placeholder={placeholder}
+                disabled={isReadOnly}
+              />
+            </div>
+          ))}
+          <div className="space-y-2">
+            <Label htmlFor="terms-finalPaymentDue">Final payment due</Label>
+            <Input
+              id="terms-finalPaymentDue"
+              type="date"
+              value={formData.terms.finalPaymentDue}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, terms: { ...prev.terms, finalPaymentDue: e.target.value } }))
+              }
+              disabled={isReadOnly}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="terms-startCity">Start city (riders travel to and from)</Label>
+            <Input
+              id="terms-startCity"
+              value={formData.terms.startCity}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, terms: { ...prev.terms, startCity: e.target.value } }))
+              }
+              placeholder="Ulaanbaatar, Mongolia"
+              disabled={isReadOnly}
+            />
+          </div>
+        </div>
+      </FormSection>
+
       {/* Rally Settings */}
       <FormSection title="Rally Settings">
         <div className="space-y-2">
@@ -461,6 +540,24 @@ export function RallyForm({
             checked={formData.isRecruiting}
             onCheckedChange={(checked) =>
               setFormData((prev) => ({ ...prev, isRecruiting: checked }))
+            }
+            disabled={isReadOnly}
+          />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <Label htmlFor="isPlaceholder">Details coming (simple tile)</Label>
+            <p className="text-sm text-muted-foreground">
+              Upcoming: a &quot;Coming soon&quot; card. Past: a simple tile with no rally page, until photos and
+              info are added.
+            </p>
+          </div>
+          <Switch
+            id="isPlaceholder"
+            checked={formData.isPlaceholder}
+            onCheckedChange={(checked) =>
+              setFormData((prev) => ({ ...prev, isPlaceholder: checked }))
             }
             disabled={isReadOnly}
           />

@@ -27,7 +27,7 @@ const LIST_SEPARATOR = ', '
  * Postgres jsonb returns object keys shortest-first, not in the order the website wrote them,
  * so known keys are read in this reading order; any other keys follow in their stored order.
  */
-const KEY_DISPLAY_ORDER = ['description', 'text', 'notes', 'links', 'locations', 'other', 'street', 'city', 'state', 'postalCode', 'country']
+const KEY_DISPLAY_ORDER = ['description', 'text', 'notes', 'links', 'locations', 'other', 'street', 'street2', 'city', 'state', 'postalCode', 'country']
 
 function orderedValues(record: object): unknown[] {
   const entries = Object.entries(record)
@@ -77,6 +77,18 @@ export function medicalCertificationLabel(value: string | null | undefined): str
   const trimmed = trimmedOrUndefined(value)
   if (!trimmed) return undefined
   return MEDICAL_CERTIFICATION_LABELS[trimmed] ?? trimmed
+}
+
+const ROOMING_LABELS: Record<string, string> = {
+  TWIN: 'Twin room (with a roommate, included)',
+  SINGLE: 'Single room (at own expense)',
+}
+
+/** Label for the acceptance letter's rooming preference (TWIN | SINGLE). */
+export function roomingLabel(value: string | null | undefined): string | undefined {
+  const trimmed = trimmedOrUndefined(value)
+  if (!trimmed) return undefined
+  return ROOMING_LABELS[trimmed] ?? trimmed
 }
 
 /** Label for the website's "how did you hear" value, including "other: <free text>". */
