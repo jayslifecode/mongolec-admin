@@ -267,7 +267,7 @@ function buildColumns(onActionComplete?: () => void): ColumnDef<Application>[] {
     {
       accessorKey: 'status',
       header: 'Status',
-      cell: ({ getValue }) => {
+      cell: ({ getValue, row }) => {
         const status = getValue<string>()
         const conf = applicationStatusConfig[status as keyof typeof applicationStatusConfig] ?? {
           label: status ?? 'Unknown',
@@ -275,9 +275,16 @@ function buildColumns(onActionComplete?: () => void): ColumnDef<Application>[] {
           variant: 'outline' as const,
         }
         return (
-          <Badge variant={conf.variant} className={conf.color}>
-            {conf.label}
-          </Badge>
+          <div className="flex flex-col items-start gap-1">
+            <Badge variant={conf.variant} className={conf.color}>
+              {conf.label}
+            </Badge>
+            {row.original.acceptance && (
+              <span className="text-[11px] font-medium text-emerald-600" data-acceptance-received>
+                Letter received
+              </span>
+            )}
+          </div>
         )
       },
     },

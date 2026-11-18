@@ -40,11 +40,13 @@ export interface Application {
   totalAmount?: number
   fundraisingGoal?: number
   fundraisingRaised?: number
-  adminNotes?: string
+  reviewNotes?: unknown
   reviewedBy?: string
   reviewedAt?: string
   createdAt: string
   updatedAt: string
+  /** Present once the rider has submitted their acceptance letter (round 4). */
+  acceptance?: { id: string; submittedAt: string } | null
 }
 
 export type ApplicationStatus =

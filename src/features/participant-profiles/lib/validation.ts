@@ -3,7 +3,8 @@ import { z } from 'zod'
 export const participantFormSchema = z.object({
   firstName: z.string().trim().min(1, 'First name is required'),
   lastName: z.string().trim().min(1, 'Last name is required'),
-  photo: z.string().trim().optional(),
+  // The featured photo every rider is shown by (round 4): required.
+  photo: z.string().trim().min(1, 'A featured photo is required'),
   country: z.string().trim().min(1, 'Country is required'),
   bio: z.string().trim().optional(),
   displayOrder: z.number().int().min(0, 'Must be 0 or greater'),

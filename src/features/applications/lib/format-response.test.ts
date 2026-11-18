@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { formatResponse, howHeardLabel, medicalCertificationLabel, safeHttpUrl } from './format-response'
+import { formatResponse, howHeardLabel, medicalCertificationLabel, roomingLabel, safeHttpUrl } from './format-response'
 
 describe('safeHttpUrl', () => {
   test('accepts http and https links', () => {
@@ -89,5 +89,19 @@ describe('howHeardLabel', () => {
   test('passes unknown values through and ignores empty ones', () => {
     expect(howHeardLabel('Newspaper')).toBe('Newspaper')
     expect(howHeardLabel('')).toBeUndefined()
+  })
+})
+
+describe('acceptance letter answers (round 4)', () => {
+  test('reads a shipping address with the second street line right after the first', () => {
+    const address = { city: 'Boston', state: 'MA', street: '1 Main St', country: 'USA', street2: 'Apt 4', postalCode: '02101' }
+    expect(formatResponse(address)).toBe('1 Main St, Apt 4, Boston, MA, 02101, USA')
+  })
+
+  test('labels the rooming preference', () => {
+    expect(roomingLabel('TWIN')).toBe('Twin room (with a roommate, included)')
+    expect(roomingLabel('SINGLE')).toBe('Single room (at own expense)')
+    expect(roomingLabel('OTHER')).toBe('OTHER')
+    expect(roomingLabel(null)).toBeUndefined()
   })
 })

@@ -35,6 +35,7 @@ import { GET_RALLIES } from '@/graphql/queries/rallies'
 import { FormSection } from '@/components/admin'
 import { sortRalliesByStartDateDesc, type RallyOption } from '../lib/rally-options'
 import { validateParticipantForm } from '../lib/validation'
+import { SingleImageUpload } from '@/components/single-image-upload'
 import type { ParticipantProfile } from '../types'
 import { riderTierConfig } from '../types'
 
@@ -300,22 +301,30 @@ export function ParticipantProfileForm({
         )}
       </FormSection>
 
-      <FormSection title="Photo">
+      <FormSection
+        title="Featured photo"
+        description="The main photo the rider is shown with on the website (use the portrait from their latest rally)."
+      >
         <div className="space-y-1.5">
-          <Label>Photo URL</Label>
+          <Label>
+            Featured photo <span className="text-destructive">*</span>
+          </Label>
+          <SingleImageUpload
+            key={formData.photo || 'empty'}
+            initialUrl={formData.photo || undefined}
+            autoUpload
+            onUpload={(url) => handleChange('photo', url)}
+          />
+          {fieldErrors.photo && <p className="text-xs text-destructive">{fieldErrors.photo}</p>}
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-muted-foreground">Or paste an image URL</Label>
           <Input
             value={formData.photo}
             onChange={(e) => handleChange('photo', e.target.value)}
-            placeholder="https://example.com/photo.jpg"
+            placeholder="https://..."
           />
         </div>
-        {formData.photo && (
-          <img
-            src={formData.photo}
-            alt="Preview"
-            className="h-32 w-32 rounded-lg object-cover border mt-2"
-          />
-        )}
       </FormSection>
 
       <FormSection title="Biography">

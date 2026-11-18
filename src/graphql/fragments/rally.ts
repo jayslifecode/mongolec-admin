@@ -15,6 +15,9 @@ export const RALLY_FIELDS = gql`
     currentParticipants
     heroImage
     heroVideo
+    photoCredit
+    acceptanceTerms
+    isPlaceholder
     isRecruiting
     applicationDeadline
     status

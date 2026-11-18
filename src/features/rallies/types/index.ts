@@ -12,6 +12,13 @@ export interface Rally {
   currentParticipants?: number
   heroImage?: string
   heroVideo?: string
+  /** "Photos by: …" credit under the gallery (round 4). */
+  photoCredit?: string | null
+  /** Amounts quoted in the acceptance letter (round 4). */
+  acceptanceTerms?: unknown
+  /** Upcoming: "Coming soon" card. Past: simple tile with no page until info arrives. */
+  isPlaceholder?: boolean
+
   isRecruiting: boolean
   applicationDeadline?: string
   status: RallyStatus
