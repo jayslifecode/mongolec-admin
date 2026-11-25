@@ -6,6 +6,8 @@ import {
 } from "@apollo/client";
 import { CombinedGraphQLErrors } from "@apollo/client/errors";
 import { ErrorLink } from "@apollo/client/link/error";
+import { sidebarData } from "@/components/layout/data/sidebar-data";
+import { tenantForPath } from "@/lib/navigation";
 
 // Modern HTTP link for Apollo Client v4
 const httpLink = new HttpLink({
@@ -32,8 +34,24 @@ const errorLink = new ErrorLink(({ error, operation }) => {
   // Note: Auth error handling is managed by AuthProvider context
 });
 
+// Pages of an organisation's section (e.g. Rally for Rangers) work in that organisation:
+// super admins belong to Mongolec, so without this header their rally lists come back empty
+// and new rallies are filed under Mongolec. The backend ignores it for anyone else.
+const tenantLink = new ApolloLink((operation, forward) => {
+  const tenant =
+    typeof window === "undefined"
+      ? null
+      : tenantForPath(window.location.pathname, sidebarData.navGroups);
+  if (tenant) {
+    operation.setContext(({ headers = {} }: { headers?: Record<string, string> }) => ({
+      headers: { ...headers, "X-Tenant-ID": tenant },
+    }));
+  }
+  return forward(operation);
+});
+
 // Chain links using ApolloLink.from (modern v4 approach)
-const link = ApolloLink.from([errorLink, httpLink]);
+const link = ApolloLink.from([errorLink, tenantLink, httpLink]);
 
 // Create Apollo Client with secure cookie-based auth (v4)
 export const apolloClient = new ApolloClient({
