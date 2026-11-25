@@ -7,6 +7,7 @@ import { Loader2 } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -17,10 +18,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
-import { DetailField } from '@/components/admin'
+import { DetailField, StatusBadge } from '@/components/admin'
 import { UPDATE_MERCH_ORDER_STATUS } from '@/graphql/mutations/merch-orders'
 import {
   type MerchOrder,
@@ -50,18 +50,24 @@ export function MerchOrderDetailDialog({
     }
   )
 
-  const [localStatus, setLocalStatus] = useState<MerchOrderStatus | null>(null)
+  // The status picked in this dialog, remembered per order so it never leaks onto another order.
+  const [pending, setPending] = useState<{ orderId: string; status: MerchOrderStatus } | null>(null)
 
-  const handleStatusChange = (newStatus: string) => {
+  const handleStatusChange = async (newStatus: string) => {
     if (!order) return
     const status = newStatus as MerchOrderStatus
-    setLocalStatus(status)
-    updateStatus({ variables: { id: order.id, status } })
+    setPending({ orderId: order.id, status })
+    try {
+      await updateStatus({ variables: { id: order.id, status } })
+    } catch {
+      // onError already showed the message; show the real status again.
+      setPending(null)
+    }
   }
 
   if (!order) return null
 
-  const currentStatus = localStatus ?? order.status
+  const currentStatus = pending?.orderId === order.id ? pending.status : order.status
   const statusConf = orderStatusConfig[currentStatus]
 
   return (
@@ -70,10 +76,11 @@ export function MerchOrderDetailDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             Order #{order.orderNumber}
-            <Badge variant="outline" className={statusConf.color}>
-              {statusConf.label}
-            </Badge>
+            <StatusBadge tone={statusConf.tone}>{statusConf.label}</StatusBadge>
           </DialogTitle>
+          <DialogDescription>
+            Placed by {order.customerName} on {new Date(order.createdAt).toLocaleDateString()}.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 pt-2">
@@ -98,27 +105,22 @@ export function MerchOrderDetailDialog({
             ]
             if (pay.ebarimtCustomerNo) rows.push(['E-barimt no.', pay.ebarimtCustomerNo])
             return (
-              <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 px-4 py-3 space-y-3">
+              <div className="rounded-lg border border-border bg-muted/40 px-4 py-3 space-y-3">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-emerald-800">✓ Paid via QPay</p>
+                  <p className="text-sm font-semibold">Paid via QPay</p>
                   {pay.settlementStatus && (
-                    <Badge
-                      variant="outline"
-                      className="bg-emerald-100 text-emerald-700 border-emerald-300 text-xs"
-                    >
-                      {pay.settlementStatus}
-                    </Badge>
+                    <StatusBadge tone="success">{pay.settlementStatus}</StatusBadge>
                   )}
                 </div>
-                <div className="flex items-baseline gap-2 border-b border-emerald-200/70 pb-2">
-                  <span className="text-xs text-emerald-700">Net received</span>
-                  <span className="text-lg font-bold text-emerald-800">{fmt(pay.netAmount)}</span>
+                <div className="flex items-baseline gap-2 border-b border-border pb-2">
+                  <span className="text-xs text-muted-foreground">Net received</span>
+                  <span className="text-lg font-bold">{fmt(pay.netAmount)}</span>
                 </div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                <div className="grid grid-cols-1 gap-x-4 gap-y-1.5 text-xs sm:grid-cols-2">
                   {rows.map(([label, value]) => (
                     <div key={label} className="flex flex-col">
-                      <span className="text-emerald-700/70">{label}</span>
-                      <span className="text-emerald-900">{value}</span>
+                      <span className="text-muted-foreground">{label}</span>
+                      <span>{value}</span>
                     </div>
                   ))}
                 </div>
@@ -128,14 +130,14 @@ export function MerchOrderDetailDialog({
 
           {/* Status update */}
           <div className="space-y-2">
-            <Label>Update Status</Label>
+            <Label htmlFor="order-status">Update status</Label>
             <div className="flex items-center gap-2">
               <Select
                 value={currentStatus}
                 onValueChange={handleStatusChange}
                 disabled={isUpdating}
               >
-                <SelectTrigger className="w-48">
+                <SelectTrigger id="order-status" className="w-48">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -146,7 +148,7 @@ export function MerchOrderDetailDialog({
                   ))}
                 </SelectContent>
               </Select>
-              {isUpdating && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+              {isUpdating && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-label="Saving" />}
             </div>
           </div>
 
@@ -155,7 +157,7 @@ export function MerchOrderDetailDialog({
           {/* Contact info */}
           <div>
             <p className="text-sm font-semibold mb-3">Customer Information</p>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <DetailField label="Name" value={order.customerName} />
               <DetailField label="Phone" value={order.phone} />
               <DetailField label="Email" value={order.email} />
@@ -164,8 +166,8 @@ export function MerchOrderDetailDialog({
                 label="Delivery Method"
                 value={
                   order.deliveryMethod === 'PICKUP'
-                    ? 'Оффисоос авна / Pickup'
-                    : 'Хүргэлт / Delivery'
+                    ? 'Pickup'
+                    : 'Delivery'
                 }
               />
             </div>

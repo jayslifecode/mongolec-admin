@@ -13,10 +13,8 @@ interface EditNewsPageProps {
 export default async function EditNewsPage({ params }: EditNewsPageProps) {
   const { id } = await params
 
-  // TODO: Fetch article data and pass as initialValues to form
-
   return (
-    <div className='mx-auto max-w-6xl px-4 py-8'>
+    <div className='mx-auto max-w-6xl'>
       <NewsArticleFormBlockNote mode='edit' articleId={id} />
     </div>
   )

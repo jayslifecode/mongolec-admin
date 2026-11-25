@@ -1,6 +1,9 @@
 import { serverGraphQL } from '@/lib/server-graphql'
 import type { NewsArticle, NewsFilters, PaginatedResponse, NewsStats } from '../types'
 
+/** The API has no total count, so the list fetches up to this many articles and pages them here. */
+const ARTICLE_FETCH_LIMIT = 1000
+
 const NEWS_ARTICLES_QUERY = `
   query GetNewsArticles(
     $language: String
@@ -91,72 +94,57 @@ export async function getNewsArticles(
 ): Promise<PaginatedResponse<NewsArticle>> {
   const offset = (page - 1) * pageSize
 
-  try {
-    const data = await serverGraphQL<{ getNewsArticles: RawNewsArticle[] }>({
-      query: NEWS_ARTICLES_QUERY,
-      variables: {
-        language: filters.language ?? 'en',
-        status: filters.status?.[0],
-        priority: filters.priority?.[0],
-        limit: pageSize * 3,
-        offset: 0,
-      },
-    })
+  // Errors propagate so the page can show an error state instead of an empty list.
+  const data = await serverGraphQL<{ getNewsArticles: RawNewsArticle[] }>({
+    query: NEWS_ARTICLES_QUERY,
+    variables: {
+      language: filters.language ?? 'en',
+      status: filters.status?.[0],
+      priority: filters.priority?.[0],
+      limit: ARTICLE_FETCH_LIMIT,
+      offset: 0,
+    },
+  })
 
-    let articles = (data.getNewsArticles ?? []).map(mapArticle)
+  let articles = (data.getNewsArticles ?? []).map(mapArticle)
 
-    if (filters.search) {
-      const q = filters.search.toLowerCase()
-      articles = articles.filter(
-        (a) =>
-          a.title.toLowerCase().includes(q) ||
-          (a.category?.name ?? '').toLowerCase().includes(q) ||
-          (a.byline ?? '').toLowerCase().includes(q)
-      )
-    }
+  if (filters.search) {
+    const q = filters.search.toLowerCase()
+    articles = articles.filter(
+      (a) =>
+        a.title.toLowerCase().includes(q) ||
+        (a.category?.name ?? '').toLowerCase().includes(q) ||
+        (a.byline ?? '').toLowerCase().includes(q)
+    )
+  }
 
-    const totalItems = articles.length
-    const totalPages = Math.ceil(totalItems / pageSize)
-    const paginatedArticles = articles.slice(offset, offset + pageSize)
+  const totalItems = articles.length
+  const totalPages = Math.ceil(totalItems / pageSize)
+  const paginatedArticles = articles.slice(offset, offset + pageSize)
 
-    return {
-      data: paginatedArticles,
-      totalItems,
-      currentPage: page,
-      pageSize,
-      totalPages,
-    }
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('Authentication required')) {
-      throw error
-    }
-    console.error('[getNewsArticles]', error)
-    return { data: [], totalItems: 0, currentPage: page, pageSize, totalPages: 0 }
+  return {
+    data: paginatedArticles,
+    totalItems,
+    currentPage: page,
+    pageSize,
+    totalPages,
   }
 }
 
 export async function getNewsStats(): Promise<NewsStats> {
-  try {
-    const data = await serverGraphQL<{ getNewsArticles: RawNewsArticle[] }>({
-      query: NEWS_ARTICLES_QUERY,
-      variables: { language: 'en', limit: 1000, offset: 0 },
-    })
+  const data = await serverGraphQL<{ getNewsArticles: RawNewsArticle[] }>({
+    query: NEWS_ARTICLES_QUERY,
+    variables: { language: 'en', limit: ARTICLE_FETCH_LIMIT, offset: 0 },
+  })
 
-    const articles = data.getNewsArticles ?? []
+  const articles = data.getNewsArticles ?? []
 
-    return {
-      total: articles.length,
-      published: articles.filter((a) => a.status?.toLowerCase() === 'published').length,
-      breaking: articles.filter((a) => a.isBreaking || a.priority?.toLowerCase() === 'breaking').length,
-      featured: articles.filter((a) => a.isFeatured).length,
-      drafts: articles.filter((a) => a.status?.toLowerCase() === 'draft').length,
-      scheduled: articles.filter((a) => a.status?.toLowerCase() === 'scheduled').length,
-    }
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('Authentication required')) {
-      throw error
-    }
-    console.error('[getNewsStats]', error)
-    return { total: 0, published: 0, breaking: 0, featured: 0, drafts: 0, scheduled: 0 }
+  return {
+    total: articles.length,
+    published: articles.filter((a) => a.status?.toLowerCase() === 'published').length,
+    breaking: articles.filter((a) => a.isBreaking || a.priority?.toLowerCase() === 'breaking').length,
+    featured: articles.filter((a) => a.isFeatured).length,
+    drafts: articles.filter((a) => a.status?.toLowerCase() === 'draft').length,
+    scheduled: articles.filter((a) => a.status?.toLowerCase() === 'scheduled').length,
   }
 }

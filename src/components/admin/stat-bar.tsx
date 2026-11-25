@@ -17,17 +17,17 @@ interface StatBarProps {
 
 const accentValue: Record<string, string> = {
   default: 'text-foreground',
-  green: 'text-emerald-500',
-  amber: 'text-amber-500',
-  red: 'text-red-500',
-  blue: 'text-sky-500',
+  green: 'text-success',
+  amber: 'text-warning',
+  red: 'text-danger',
+  blue: 'text-foreground',
   primary: 'text-primary',
 }
 
 export function StatBar({ stats, loading, className }: StatBarProps) {
   return (
     <div className={cn(
-      'flex flex-wrap gap-0 rounded-xl border border-border/60 bg-card overflow-hidden',
+      'flex flex-wrap gap-0 rounded-xl border border-border bg-card overflow-hidden',
       className
     )}>
       {stats.map((stat, i) => (
@@ -35,7 +35,7 @@ export function StatBar({ stats, loading, className }: StatBarProps) {
           key={stat.label}
           className={cn(
             'flex-1 min-w-[100px] px-5 py-3.5',
-            i < stats.length - 1 && 'border-r border-border/60',
+            i < stats.length - 1 && 'border-r border-border',
           )}
         >
           <div className="text-xs font-medium text-muted-foreground mb-1">{stat.label}</div>

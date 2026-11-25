@@ -3,12 +3,11 @@
 import { useParams } from 'next/navigation'
 import { useQuery } from '@apollo/client/react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { AlertCircle, Pencil, Users, Calendar } from 'lucide-react'
 import Link from 'next/link'
 import { GET_TEAM_MEMBERS } from '@/graphql/queries/team'
-import { PageHeader, FormSection, DetailField, EmptyState } from '@/components/admin'
+import { PageHeader, FormSection, DetailField, EmptyState, StatusBadge } from '@/components/admin'
 import type { TeamMember } from '@/features/team/types'
 
 interface GetTeamMembersData {
@@ -30,7 +29,7 @@ export default function TeamDetailPage() {
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div>
         <EmptyState icon={Users} title="Loading team member…" className="py-20" />
       </div>
     )
@@ -40,10 +39,10 @@ export default function TeamDetailPage() {
 
   if (error || !member) {
     return (
-      <div className="space-y-4 p-6">
+      <div className="space-y-6">
         <PageHeader title="Team Member" backHref="/team" />
         <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
+          <AlertCircle className="h-4 w-4" aria-hidden="true" />
           <AlertDescription>{error?.message || 'Team member not found'}</AlertDescription>
         </Alert>
       </div>
@@ -51,23 +50,21 @@ export default function TeamDetailPage() {
   }
 
   return (
-    <div className="space-y-5 p-6 max-w-4xl">
+    <div className="max-w-4xl space-y-6">
       <PageHeader
         title={member.name}
         description={member.role}
         backHref="/team"
         badge={
-          <Badge variant={member.isActive ? 'default' : 'secondary'}>
-            {member.isActive ? 'Active' : 'Inactive'}
-          </Badge>
+          member.isActive ? <StatusBadge tone="success">Active</StatusBadge> : <StatusBadge>Inactive</StatusBadge>
         }
         actions={
-          <Link href={`/team/${memberId}/edit`}>
-            <Button size="sm">
-              <Pencil className="h-3.5 w-3.5 mr-1.5" />
+          <Button size="sm" asChild>
+            <Link href={`/team/${memberId}/edit`}>
+              <Pencil className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
               Edit
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         }
       />
 
@@ -77,7 +74,7 @@ export default function TeamDetailPage() {
             <FormSection title="Photo">
               <img
                 src={member.photo}
-                alt={member.name}
+                alt={`Photo of ${member.name}`}
                 className="h-48 w-48 rounded-lg object-cover border"
               />
             </FormSection>
@@ -87,13 +84,11 @@ export default function TeamDetailPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <DetailField label="Name" value={member.name} />
               <DetailField label="Role" value={member.role} />
-              <DetailField label="Display Order" value={String(member.displayOrder)} />
+              <DetailField label="Display order" value={String(member.displayOrder)} />
               <DetailField
                 label="Status"
                 value={
-                  <Badge variant={member.isActive ? 'default' : 'secondary'}>
-                    {member.isActive ? 'Active' : 'Inactive'}
-                  </Badge>
+                  member.isActive ? <StatusBadge tone="success">Active</StatusBadge> : <StatusBadge>Inactive</StatusBadge>
                 }
               />
             </div>

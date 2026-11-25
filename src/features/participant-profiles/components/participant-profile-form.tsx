@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   Popover,
@@ -32,12 +31,11 @@ import {
   UPDATE_PARTICIPANT_PROFILE,
 } from '@/graphql/mutations/participant-profiles'
 import { GET_RALLIES } from '@/graphql/queries/rallies'
-import { FormSection } from '@/components/admin'
+import { FormField, FormSection } from '@/components/admin'
 import { sortRalliesByStartDateDesc, type RallyOption } from '../lib/rally-options'
 import { validateParticipantForm } from '../lib/validation'
 import { SingleImageUpload } from '@/components/single-image-upload'
 import type { ParticipantProfile } from '../types'
-import { riderTierConfig } from '../types'
 
 interface ParticipantProfileFormProps {
   mode: 'create' | 'edit'
@@ -102,7 +100,7 @@ export function ParticipantProfileForm({
     CREATE_PARTICIPANT_PROFILE,
     {
       onCompleted: () => {
-        toast.success('Participant created successfully')
+        toast.success('Rider added')
         router.push('/participant-profiles')
       },
       onError: (err) => {
@@ -116,7 +114,7 @@ export function ParticipantProfileForm({
     UPDATE_PARTICIPANT_PROFILE,
     {
       onCompleted: () => {
-        toast.success('Participant updated successfully')
+        toast.success('Rider updated')
         router.push('/participant-profiles')
       },
       onError: (err) => {
@@ -163,7 +161,7 @@ export function ParticipantProfileForm({
       photo: formData.photo,
       country: formData.country,
       bio: formData.bio,
-      displayOrder: parseInt(formData.displayOrder) || 0,
+      displayOrder: formData.displayOrder.trim() === '' ? 0 : Number(formData.displayOrder),
       isActive: formData.isActive,
       slug: formData.slug,
       honoraryTitle: formData.honoraryTitle,
@@ -173,9 +171,10 @@ export function ParticipantProfileForm({
     const validation = validateParticipantForm(values)
     if (!validation.isValid) {
       setFieldErrors(validation.fieldErrors)
-      const firstError = Object.values(validation.fieldErrors)[0]
-      setError(firstError ?? 'Please fix the errors below')
-      toast.error(firstError ?? 'Please fix the errors below')
+      setError(null)
+      toast.error('Please fix the highlighted fields')
+      const firstKey = Object.keys(validation.fieldErrors)[0]
+      if (firstKey) document.getElementById(`rider-${firstKey}`)?.focus()
       return
     }
     setFieldErrors({})
@@ -192,9 +191,8 @@ export function ParticipantProfileForm({
       rallyIds: values.rallyIds,
     }
 
-    const trimmedSlug = values.slug.trim()
-    if (trimmedSlug) {
-      input.slug = trimmedSlug
+    if (values.slug.trim()) {
+      input.slug = values.slug.trim()
     }
 
     if (mode === 'create') {
@@ -204,100 +202,89 @@ export function ParticipantProfileForm({
     }
   }
 
-  const tier = initialData?.tier
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} noValidate className="space-y-6">
       {error && (
         <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
+          <AlertCircle className="h-4 w-4" aria-hidden="true" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
-      <FormSection title="Basic Information" description="Name and country details">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label>
-              First Name <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              value={formData.firstName}
-              onChange={(e) => handleChange('firstName', e.target.value)}
-              placeholder="First name"
-              required
-            />
-            {fieldErrors.firstName && (
-              <p className="text-xs text-destructive">{fieldErrors.firstName}</p>
+      <FormSection title="Basic information" description="Name and country">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormField id="rider-firstName" label="First name" required error={fieldErrors.firstName}>
+            {(props) => (
+              <Input
+                {...props}
+                value={formData.firstName}
+                onChange={(e) => handleChange('firstName', e.target.value)}
+                placeholder="First name"
+                autoComplete="off"
+              />
             )}
-          </div>
-          <div className="space-y-1.5">
-            <Label>
-              Last Name <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              value={formData.lastName}
-              onChange={(e) => handleChange('lastName', e.target.value)}
-              placeholder="Last name"
-              required
-            />
-            {fieldErrors.lastName && (
-              <p className="text-xs text-destructive">{fieldErrors.lastName}</p>
+          </FormField>
+          <FormField id="rider-lastName" label="Last name" required error={fieldErrors.lastName}>
+            {(props) => (
+              <Input
+                {...props}
+                value={formData.lastName}
+                onChange={(e) => handleChange('lastName', e.target.value)}
+                placeholder="Last name"
+                autoComplete="off"
+              />
             )}
-          </div>
+          </FormField>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label>
-              Country <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              value={formData.country}
-              onChange={(e) => handleChange('country', e.target.value)}
-              placeholder="E.g., Mongolia"
-              required
-            />
-            {fieldErrors.country && (
-              <p className="text-xs text-destructive">{fieldErrors.country}</p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormField id="rider-country" label="Country" required error={fieldErrors.country}>
+            {(props) => (
+              <Input
+                {...props}
+                value={formData.country}
+                onChange={(e) => handleChange('country', e.target.value)}
+                placeholder="E.g., Mongolia"
+              />
             )}
-          </div>
-          <div className="space-y-1.5">
-            <Label>Display Order</Label>
-            <Input
-              type="number"
-              value={formData.displayOrder}
-              onChange={(e) => handleChange('displayOrder', e.target.value)}
-              placeholder="0"
-              min="0"
-            />
-          </div>
+          </FormField>
+          <FormField
+            id="rider-displayOrder"
+            label="Display order"
+            description="Lower numbers are shown first."
+            error={fieldErrors.displayOrder}
+          >
+            {(props) => (
+              <Input
+                {...props}
+                type="number"
+                inputMode="numeric"
+                min={0}
+                step={1}
+                value={formData.displayOrder}
+                onChange={(e) => handleChange('displayOrder', e.target.value)}
+                placeholder="0"
+              />
+            )}
+          </FormField>
         </div>
 
         {mode === 'edit' && (
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>Slug</Label>
+          <FormField
+            id="rider-slug"
+            label="URL name"
+            description="Made from the name automatically; change it only if needed. Lowercase letters, numbers and dashes."
+            error={fieldErrors.slug}
+          >
+            {(props) => (
               <Input
+                {...props}
                 value={formData.slug}
                 onChange={(e) => handleChange('slug', e.target.value)}
-                placeholder="Auto-generated by the backend"
+                placeholder="jane-doe"
               />
-              <p className="text-xs text-muted-foreground">
-                Auto-generated from the name; override only if needed.
-              </p>
-            </div>
-            {tier && (
-              <div className="space-y-1.5">
-                <Label>Computed Tier</Label>
-                <div>
-                  <Badge className={riderTierConfig[tier].className}>
-                    {riderTierConfig[tier].label}
-                  </Badge>
-                </div>
-              </div>
             )}
-          </div>
+          </FormField>
         )}
       </FormSection>
 
@@ -306,46 +293,60 @@ export function ParticipantProfileForm({
         description="The main photo the rider is shown with on the website (use the portrait from their latest rally)."
       >
         <div className="space-y-1.5">
-          <Label>
-            Featured photo <span className="text-destructive">*</span>
-          </Label>
+          <p className="text-sm font-medium">Upload a photo</p>
           <SingleImageUpload
             key={formData.photo || 'empty'}
             initialUrl={formData.photo || undefined}
             autoUpload
             onUpload={(url) => handleChange('photo', url)}
           />
-          {fieldErrors.photo && <p className="text-xs text-destructive">{fieldErrors.photo}</p>}
         </div>
-        <div className="space-y-1.5">
-          <Label className="text-muted-foreground">Or paste an image URL</Label>
-          <Input
-            value={formData.photo}
-            onChange={(e) => handleChange('photo', e.target.value)}
-            placeholder="https://..."
-          />
-        </div>
+        <FormField
+          id="rider-photo"
+          label="Or paste an image link"
+          required
+          error={fieldErrors.photo}
+        >
+          {(props) => (
+            <Input
+              {...props}
+              type="url"
+              value={formData.photo}
+              onChange={(e) => handleChange('photo', e.target.value)}
+              placeholder="https://..."
+            />
+          )}
+        </FormField>
       </FormSection>
 
       <FormSection title="Biography">
-        <Textarea
-          value={formData.bio}
-          onChange={(e) => handleChange('bio', e.target.value)}
-          placeholder="Enter biography"
-          className="min-h-28"
-        />
+        <FormField id="rider-bio" label="Biography">
+          {(props) => (
+            <Textarea
+              {...props}
+              value={formData.bio}
+              onChange={(e) => handleChange('bio', e.target.value)}
+              placeholder="Enter biography"
+              className="min-h-28"
+            />
+          )}
+        </FormField>
       </FormSection>
 
       <FormSection
         title="Rallies attended"
-        description="Rallies this participant took part in"
+        description="Rallies this rider took part in"
       >
+        <Label id="rider-rallies-label" className="sr-only">
+          Rallies
+        </Label>
         <Popover open={rallyPopoverOpen} onOpenChange={setRallyPopoverOpen}>
           <PopoverTrigger asChild>
             <Button
               type="button"
               variant="outline"
               role="combobox"
+              aria-labelledby="rider-rallies-label"
               aria-expanded={rallyPopoverOpen}
               className="w-full justify-between"
             >
@@ -381,7 +382,7 @@ export function ParticipantProfileForm({
         </Popover>
 
         {selectedRallies.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-2">
+          <div className="mt-2 flex flex-wrap gap-2">
             {selectedRallies.map((rally) => (
               <span
                 key={rally.id}
@@ -391,9 +392,10 @@ export function ParticipantProfileForm({
                 <button
                   type="button"
                   onClick={() => removeRally(rally.id)}
+                  aria-label={`Remove ${rally.title} (${rally.year})`}
                   className="ml-0.5 text-muted-foreground hover:text-foreground"
                 >
-                  <X className="h-3 w-3" />
+                  <X className="h-3 w-3" aria-hidden="true" />
                 </button>
               </span>
             ))}
@@ -406,46 +408,47 @@ export function ParticipantProfileForm({
         </p>
       </FormSection>
 
-      <FormSection
-        title="Honorary Title"
-        description="Overrides the computed tier badge, e.g. Board Member"
-      >
-        <Input
-          value={formData.honoraryTitle}
-          onChange={(e) => handleChange('honoraryTitle', e.target.value)}
-          placeholder="E.g., Board Member"
-        />
-        {fieldErrors.honoraryTitle && (
-          <p className="text-xs text-destructive">{fieldErrors.honoraryTitle}</p>
-        )}
+      <FormSection title="Honorary title" description="An optional special title, e.g. Board Member">
+        <FormField id="rider-honoraryTitle" label="Title" error={fieldErrors.honoraryTitle}>
+          {(props) => (
+            <Input
+              {...props}
+              value={formData.honoraryTitle}
+              onChange={(e) => handleChange('honoraryTitle', e.target.value)}
+              placeholder="E.g., Board Member"
+            />
+          )}
+        </FormField>
       </FormSection>
 
       <FormSection title="Settings">
-        <div className="flex items-center justify-between rounded-lg border border-border/50 px-4 py-3">
+        <div className="border-border flex items-center justify-between rounded-lg border px-4 py-3">
           <div>
-            <p className="text-sm font-medium">Active</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Visible in the public participant listing
+            <Label htmlFor="rider-isActive" className="text-sm font-medium">
+              Active
+            </Label>
+            <p id="rider-isActive-description" className="text-muted-foreground mt-0.5 text-xs">
+              Visible in the public rider listing
             </p>
           </div>
           <Switch
+            id="rider-isActive"
+            aria-describedby="rider-isActive-description"
             checked={formData.isActive}
             onCheckedChange={(checked) => handleChange('isActive', checked)}
           />
         </div>
       </FormSection>
 
-      <div className="sticky bottom-0 z-10 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <div className="sticky bottom-0 z-10 border-t border-border bg-background">
         <div className="flex items-center gap-3 py-4">
           <Button type="submit" disabled={loading} className="min-w-[160px]">
-            {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {mode === 'create' ? 'Add Participant' : 'Save Changes'}
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
+            {mode === 'create' ? 'Add rider' : 'Save changes'}
           </Button>
-          <Link href="/participant-profiles">
-            <Button type="button" variant="outline">
-              Cancel
-            </Button>
-          </Link>
+          <Button type="button" variant="outline" asChild>
+            <Link href="/participant-profiles">Cancel</Link>
+          </Button>
         </div>
       </div>
     </form>

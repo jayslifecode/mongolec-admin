@@ -3,13 +3,12 @@
 import { useParams } from 'next/navigation'
 import { useQuery } from '@apollo/client/react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { AlertCircle, Pencil, MapPin, Calendar, Users, Mail, Phone } from 'lucide-react'
 import Link from 'next/link'
 import { GET_PARK_PARTNERSHIP } from '@/graphql/queries/rangers'
 import { partnershipStatusConfig } from '@/features/rangers/types'
-import { PageHeader, FormSection, DetailField, EmptyState } from '@/components/admin'
+import { PageHeader, FormSection, DetailField, EmptyState, StatusBadge } from '@/components/admin'
 
 interface GetParkPartnershipData {
   getParkPartnership: any
@@ -39,7 +38,7 @@ export default function RangerDetailPage() {
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div>
         <EmptyState icon={MapPin} title="Loading park partner…" className="py-20" />
       </div>
     )
@@ -49,10 +48,10 @@ export default function RangerDetailPage() {
 
   if (error || !ranger) {
     return (
-      <div className="space-y-4 p-6">
+      <div className="space-y-6">
         <PageHeader title="Park Partner" backHref="/rangers" />
         <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
+          <AlertCircle className="h-4 w-4" aria-hidden="true" />
           <AlertDescription>{error?.message || 'Park partner not found'}</AlertDescription>
         </Alert>
       </div>
@@ -62,23 +61,21 @@ export default function RangerDetailPage() {
   const statusConf = partnershipStatusConfig[ranger.status as keyof typeof partnershipStatusConfig]
 
   return (
-    <div className="space-y-5 p-6">
+    <div className="space-y-6">
       <PageHeader
         title={getStr(ranger.parkName) ?? 'Park Partner'}
         description={ranger.country}
         backHref="/rangers"
         badge={
-          <Badge variant={statusConf.variant} className={statusConf.color}>
-            {statusConf.label}
-          </Badge>
+          <StatusBadge tone={statusConf.tone}>{statusConf.label}</StatusBadge>
         }
         actions={
-          <Link href={`/rangers/${rangerId}/edit`}>
-            <Button size="sm">
-              <Pencil className="h-3.5 w-3.5 mr-1.5" />
+          <Button size="sm" asChild>
+            <Link href={`/rangers/${rangerId}/edit`}>
+              <Pencil className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
               Edit
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         }
       />
 
@@ -120,7 +117,7 @@ export default function RangerDetailPage() {
                   <DetailField
                     label="Email"
                     value={
-                      <a href={`mailto:${ranger.contactEmail}`} className="text-blue-600 hover:underline">
+                      <a href={`mailto:${ranger.contactEmail}`} className="text-primary underline-offset-2 hover:underline">
                         {ranger.contactEmail}
                       </a>
                     }
@@ -131,7 +128,7 @@ export default function RangerDetailPage() {
                   <DetailField
                     label="Phone"
                     value={
-                      <a href={`tel:${ranger.contactPhone}`} className="text-blue-600 hover:underline">
+                      <a href={`tel:${ranger.contactPhone}`} className="text-primary underline-offset-2 hover:underline">
                         {ranger.contactPhone}
                       </a>
                     }

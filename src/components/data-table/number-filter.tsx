@@ -25,7 +25,7 @@ type NumberFilterProps<TData, TValue> = {
 export function DataTableNumberFilter<TData, TValue>({
   column,
   title,
-  placeholder = 'Тоо...',
+  placeholder = 'Number…',
   icon: Icon = Hash,
   min,
   max,
@@ -79,7 +79,7 @@ export function DataTableNumberFilter<TData, TValue>({
   return (
     <div
       className={cn(
-        'bg-background relative flex h-8 min-w-[150px] items-center rounded-md border border-dashed transition-all duration-200',
+        'bg-background relative flex h-8 min-w-[150px] items-center rounded-md border border-dashed transition-colors duration-200',
         'hover:bg-muted/60 hover:border-muted-foreground/50',
         hasValue && 'border-primary bg-primary/5'
       )}

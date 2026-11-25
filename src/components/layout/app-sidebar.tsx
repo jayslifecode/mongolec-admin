@@ -41,7 +41,7 @@ export function AppSidebar() {
               </div>
               <div className="grid leading-tight group-data-[collapsible=icon]:hidden">
                 <span className="truncate font-semibold text-sm text-sidebar-foreground">Mongolec</span>
-                <span className="truncate text-xs text-sidebar-foreground/50">Admin Dashboard</span>
+                <span className="truncate text-xs text-sidebar-foreground/75">Admin Dashboard</span>
               </div>
             </div>
           </SidebarMenuItem>

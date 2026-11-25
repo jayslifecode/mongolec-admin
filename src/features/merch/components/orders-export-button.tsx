@@ -11,13 +11,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Download, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { EXPORT_MERCH_ORDERS } from '@/graphql/mutations/merch-orders'
 import { downloadBase64File } from '@/lib/download'
+import { FormField } from '@/components/admin'
+import { validateExportRange, type ExportRangeErrors } from '../lib/export-range'
 
 interface ExportResult {
   exportMerchOrders: { filename: string; mimeType: string; base64: string; count: number }
@@ -42,6 +44,7 @@ export function OrdersExportButton({ orders }: { orders: { id: string }[] }) {
   const [customOpen, setCustomOpen] = useState(false)
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
+  const [rangeErrors, setRangeErrors] = useState<ExportRangeErrors>({})
 
   const run = async (input: Record<string, unknown>, label: string) => {
     try {
@@ -63,11 +66,11 @@ export function OrdersExportButton({ orders }: { orders: { id: string }[] }) {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" disabled={loading}>
+          <Button type="button" variant="outline" disabled={loading}>
             {loading ? (
-              <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              <Loader2 className="h-4 w-4 mr-1.5 animate-spin" aria-hidden="true" />
             ) : (
-              <Download className="h-4 w-4 mr-1.5" />
+              <Download className="h-4 w-4 mr-1.5" aria-hidden="true" />
             )}
             Export Excel
           </Button>
@@ -98,30 +101,39 @@ export function OrdersExportButton({ orders }: { orders: { id: string }[] }) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Dialog open={customOpen} onOpenChange={setCustomOpen}>
+      <Dialog
+        open={customOpen}
+        onOpenChange={(open) => {
+          setCustomOpen(open)
+          if (!open) setRangeErrors({})
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Export a custom date range</DialogTitle>
+            <DialogDescription>
+              Download the orders placed between two dates as an Excel file. Leave one date empty for an open range.
+            </DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="export-from">From</Label>
-              <Input
-                id="export-from"
-                type="date"
-                value={from}
-                onChange={(e) => setFrom(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="export-to">To</Label>
-              <Input id="export-to" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-            </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <FormField id="export-from" label="From" error={rangeErrors.from}>
+              {(control) => (
+                <Input {...control} type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+              )}
+            </FormField>
+            <FormField id="export-to" label="To" error={rangeErrors.to}>
+              {(control) => (
+                <Input {...control} type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+              )}
+            </FormField>
           </div>
           <DialogFooter>
             <Button
-              disabled={!from && !to}
+              type="button"
               onClick={() => {
+                const errors = validateExportRange(from, to)
+                setRangeErrors(errors ?? {})
+                if (errors) return
                 const input: Record<string, unknown> = {}
                 if (from) input.startDate = new Date(from).toISOString()
                 if (to) {
@@ -130,7 +142,7 @@ export function OrdersExportButton({ orders }: { orders: { id: string }[] }) {
                   input.endDate = t.toISOString()
                 }
                 setCustomOpen(false)
-                run(input, 'custom range')
+                void run(input, 'custom range')
               }}
             >
               Export

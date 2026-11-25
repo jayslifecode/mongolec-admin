@@ -37,32 +37,20 @@ interface GetUsersParams {
   orderDirection?: string
 }
 
-const EMPTY_RESPONSE: UsersResponse = {
-  users: [],
-  pagination: { page: 1, limit: 20, total: 0, totalPages: 0, currentPage: 1, perPage: 20, hasNextPage: false, hasPreviousPage: false },
-}
-
 export async function getUsers(params: GetUsersParams = {}): Promise<UsersResponse> {
-  try {
-    const data = await serverGraphQL<{ getUsers: UsersResponse }>({
-      query: USERS_QUERY,
-      variables: {
-        page: params.page ?? 1,
-        limit: params.limit ?? 20,
-        search: params.search || undefined,
-        status: params.status || undefined,
-        orderBy: params.orderBy || 'createdAt',
-        orderDirection: params.orderDirection || 'desc',
-      },
-    })
-    return data.getUsers
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('Authentication required')) {
-      throw error
-    }
-    console.error('[getUsers]', error)
-    return EMPTY_RESPONSE
-  }
+  // Errors propagate: callers show an error state instead of an empty list that looks like "no users".
+  const data = await serverGraphQL<{ getUsers: UsersResponse }>({
+    query: USERS_QUERY,
+    variables: {
+      page: params.page ?? 1,
+      limit: params.limit ?? 20,
+      search: params.search || undefined,
+      status: params.status || undefined,
+      orderBy: params.orderBy || 'createdAt',
+      orderDirection: params.orderDirection || 'desc',
+    },
+  })
+  return data.getUsers
 }
 
 const USER_APPROVAL_STATS_QUERY = `
@@ -78,28 +66,20 @@ const USER_APPROVAL_STATS_QUERY = `
 `
 
 export async function getUserStats() {
-  try {
-    const data = await serverGraphQL<{
-      getUserApprovalStats: {
-        totalUsers: number
-        activeUsers: number
-        pendingUsers: number
-        rejectedUsers: number
-        inactiveUsers: number
-      }
-    }>({ query: USER_APPROVAL_STATS_QUERY })
-    const s = data.getUserApprovalStats
-    return {
-      total: s.totalUsers,
-      active: s.activeUsers,
-      pending: s.pendingUsers,
-      inactive: s.inactiveUsers,
+  const data = await serverGraphQL<{
+    getUserApprovalStats: {
+      totalUsers: number
+      activeUsers: number
+      pendingUsers: number
+      rejectedUsers: number
+      inactiveUsers: number
     }
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('Authentication required')) {
-      throw error
-    }
-    console.error('[getUserStats]', error)
-    return { total: 0, active: 0, pending: 0, inactive: 0 }
+  }>({ query: USER_APPROVAL_STATS_QUERY })
+  const s = data.getUserApprovalStats
+  return {
+    total: s.totalUsers,
+    active: s.activeUsers,
+    pending: s.pendingUsers,
+    inactive: s.inactiveUsers,
   }
 }

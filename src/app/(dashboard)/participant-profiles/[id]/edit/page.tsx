@@ -27,28 +27,28 @@ export default function EditParticipantProfilePage() {
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto">
-        <EmptyState icon={Users} title="Loading participant…" className="py-20" />
+        <EmptyState icon={Users} title="Loading rider…" className="py-20" />
       </div>
     )
   }
 
   if (error || !participant) {
     return (
-      <div className="space-y-4 max-w-4xl mx-auto">
-        <PageHeader title="Edit Participant Profile" backHref="/participant-profiles" />
+      <div className="mx-auto max-w-4xl space-y-6">
+        <PageHeader title="Edit rider" backHref="/participant-profiles" />
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error?.message || 'Participant not found'}</AlertDescription>
+          <AlertDescription>{error?.message || 'Rider not found'}</AlertDescription>
         </Alert>
       </div>
     )
   }
 
   return (
-    <div className="space-y-5 max-w-4xl mx-auto">
+    <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader
         title={`${participant.firstName} ${participant.lastName}`}
-        description="Update participant profile information"
+        description="Update this rider"
         backHref="/participant-profiles"
       />
       <ParticipantProfileForm

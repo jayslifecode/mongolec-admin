@@ -5,11 +5,14 @@ import { Button } from '@/components/ui/button'
 import { Users, Plus } from 'lucide-react'
 import { ParticipantProfileTable } from '@/features/participant-profiles/components/participant-profile-table'
 import { GET_PARTICIPANT_PROFILES } from '@/graphql/queries/participant-profiles'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle } from 'lucide-react'
+import { computeRiderStats } from '@/features/participant-profiles/lib/rider-stats'
+import { ListError } from '@/features/people/components/list-error'
 import Link from 'next/link'
 import { PageHeader, StatBar, EmptyState } from '@/components/admin'
 import type { ParticipantProfile } from '@/features/participant-profiles/types'
+
+/** The API accepts a large page; ask for every rider so the table and the stats agree. */
+const RIDERS_PAGE_SIZE = 500
 
 interface GetParticipantsData {
   getParticipants: {
@@ -20,72 +23,62 @@ interface GetParticipantsData {
   }
 }
 
-export default function ParticipantProfilesPage() {
+export default function RidersPage() {
   const { data, loading, error, refetch } = useQuery<GetParticipantsData>(
     GET_PARTICIPANT_PROFILES,
     {
-      variables: { limit: 100, page: 1 },
+      variables: { limit: RIDERS_PAGE_SIZE, page: 1 },
       fetchPolicy: 'cache-and-network',
     },
   )
 
-  const participants = data?.getParticipants.participants ?? []
+  const riders = data?.getParticipants.participants ?? []
+  const stats = computeRiderStats(riders, data?.getParticipants.pagination.total)
+  const isInitialLoad = loading && !data
 
-  const stats = [
-    { label: 'Total', value: loading ? '—' : participants.length },
-    {
-      label: 'Active',
-      value: loading ? '—' : participants.filter((p) => p.isActive).length,
-      accent: 'green' as const,
-    },
-    {
-      label: 'Inactive',
-      value: loading ? '—' : participants.filter((p) => !p.isActive).length,
-    },
+  const statItems = [
+    { label: 'Total', value: stats.total },
+    { label: 'Active', value: stats.active },
+    { label: 'Inactive', value: stats.inactive },
   ]
 
   return (
-    <div className="space-y-5 p-6">
+    <div className="space-y-6">
       <PageHeader
-        title="Participant Profiles"
-        description="Manage participant profiles for the Mongolec rally"
+        title="Riders"
+        description="Riders who have joined a Rally for Rangers rally"
         actions={
-          <Link href="/participant-profiles/create">
-            <Button size="sm">
-              <Plus className="h-4 w-4 mr-1.5" />
-              Add Participant
-            </Button>
-          </Link>
+          <Button size="sm" asChild>
+            <Link href="/participant-profiles/create">
+              <Plus className="mr-1.5 h-4 w-4" />
+              Add rider
+            </Link>
+          </Button>
         }
       />
 
-      <StatBar stats={stats} loading={loading} />
+      <StatBar stats={statItems} loading={isInitialLoad} />
 
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Failed to load participant profiles: {error.message}
-          </AlertDescription>
-        </Alert>
+      {stats.isPartial && !isInitialLoad && (
+        <p className="text-muted-foreground text-sm">
+          Showing {riders.length} of {stats.total} riders. Active and inactive counts cover the riders shown.
+        </p>
       )}
 
-      {loading ? (
-        <div className="rounded-xl border border-border/60 bg-card">
-          <EmptyState icon={Users} title="Loading participant profiles…" className="py-12" />
-        </div>
-      ) : participants.length === 0 ? (
-        <div className="rounded-xl border border-border/60 bg-card">
+      {error && !data ? (
+        <ListError message={error.message} onRetry={() => refetch()} />
+      ) : !isInitialLoad && riders.length === 0 ? (
+        <div className="border-border bg-card rounded-xl border">
           <EmptyState
             icon={Users}
-            title="No participant profiles yet"
-            description="Add your first participant profile to get started."
+            title="No riders yet"
+            description="Add your first rider to get started."
           />
         </div>
       ) : (
         <ParticipantProfileTable
-          participants={participants}
-          loading={loading}
+          participants={riders}
+          loading={isInitialLoad}
           onActionComplete={() => refetch()}
         />
       )}

@@ -78,8 +78,10 @@ export function DataTableToolbar<TData>({
     <div className="space-y-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-1 items-center space-x-2">
-          <Search className="h-4 w-4 text-muted-foreground" />
+          <Search className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
           <Input
+            type="search"
+            aria-label={searchPlaceholder || 'Search'}
             placeholder={searchPlaceholder}
             value={searchValue}
             onChange={(e) => handleSearchChange(e.target.value)}

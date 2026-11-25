@@ -1,11 +1,17 @@
 'use client'
 
+import { useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
+import { useMutation } from '@apollo/client/react'
+import { toast } from 'sonner'
 import { Edit, Trash2, MoreHorizontal, Package, Star } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 
-import { Badge } from '@/components/ui/badge'
+import { StatusBadge } from '@/components/admin'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import type { StatusTone } from '@/lib/ui/status-tones'
+import { DELETE_MERCH_PRODUCT } from '@/graphql/mutations/merch'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -17,7 +23,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { DataTable, createActionsColumn, createCreatedAtColumn } from '@/components/data-table'
 import type { MerchProduct } from '../types'
-import { merchStatusConfig } from '../types'
+import { getStockLevel, merchStatusConfig, stockLevelConfig } from '../types'
 
 function getDisplayName(field: string | { en: string; mn: string } | undefined): string {
   if (!field) return ''
@@ -43,18 +49,24 @@ function getPriceDisplay(product: MerchProduct): string {
   return `${product.price.toLocaleString()}`
 }
 
-function ActionsCell({ row }: { row: { original: MerchProduct } }) {
-  const product = row.original
-  const handleDelete = () => {
-    // TODO: Implement delete functionality
-  }
-
+function ActionsCell({
+  product,
+  onDelete,
+}: {
+  product: MerchProduct
+  onDelete: (product: MerchProduct) => void
+}) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8">
-          <MoreHorizontal className="h-4 w-4" />
-          <span className="sr-only">Open menu</span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          aria-label={`Actions for ${getDisplayName(product.name) || 'product'}`}
+        >
+          <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
@@ -72,7 +84,7 @@ function ActionsCell({ row }: { row: { original: MerchProduct } }) {
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleDelete} className="text-destructive">
+        <DropdownMenuItem onClick={() => onDelete(product)} className="text-destructive">
           <Trash2 className="mr-2 h-4 w-4" />
           Delete
         </DropdownMenuItem>
@@ -81,7 +93,8 @@ function ActionsCell({ row }: { row: { original: MerchProduct } }) {
   )
 }
 
-const columns: ColumnDef<MerchProduct>[] = [
+function buildColumns(onDelete: (product: MerchProduct) => void): ColumnDef<MerchProduct>[] {
+  return [
   {
     accessorKey: 'name',
     header: 'Product',
@@ -102,7 +115,7 @@ const columns: ColumnDef<MerchProduct>[] = [
             </div>
           ) : (
             <div className="flex h-12 w-12 items-center justify-center rounded-md bg-muted border flex-shrink-0">
-              <Package className="h-5 w-5 text-muted-foreground" />
+              <Package className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
             </div>
           )}
           <div className="min-w-0 flex-1">
@@ -122,14 +135,17 @@ const columns: ColumnDef<MerchProduct>[] = [
     header: 'Status',
     cell: ({ row }) => {
       const product = row.original
-      const conf = merchStatusConfig[product.status]
+      const conf = merchStatusConfig[product.status] as { label: string; tone: StatusTone } | undefined
       return (
-        <Badge variant="outline" className={`${conf?.color || ''} gap-1.5`}>
-          {conf?.label || product.status}
+        <StatusBadge tone={conf?.tone ?? 'neutral'}>
+          {conf?.label ?? product.status}
           {product.isFeatured && (
-            <Star className="h-3 w-3 fill-amber-400 text-amber-400 ml-1" />
+            <>
+              <Star className="h-3 w-3 fill-current" aria-hidden="true" />
+              <span className="sr-only">Featured</span>
+            </>
           )}
-        </Badge>
+        </StatusBadge>
       )
     },
   },
@@ -159,29 +175,13 @@ const columns: ColumnDef<MerchProduct>[] = [
     cell: ({ row }) => {
       const product = row.original
       const total = getTotalInventory(product)
-      const minStock = product.minStock || 10
+      const stock = stockLevelConfig[getStockLevel(total, product.minStock)]
       const variantCount = product.hasVariants ? (product.variants?.length ?? 0) : 0
-
-      let stockBadge: React.ReactNode
-      if (total === 0) {
-        stockBadge = (
-          <Badge variant="outline" className="text-xs mt-1 border-destructive/50 text-destructive">
-            Out of Stock
-          </Badge>
-        )
-      } else if (total <= minStock) {
-        stockBadge = (
-          <Badge variant="outline" className="text-xs mt-1 bg-amber-50 text-amber-700 border-amber-200">
-            Low Stock
-          </Badge>
-        )
-      } else {
-        stockBadge = (
-          <Badge variant="outline" className="text-xs mt-1 bg-emerald-50 text-emerald-700 border-emerald-200">
-            In Stock
-          </Badge>
-        )
-      }
+      const stockBadge = (
+        <StatusBadge tone={stock.tone} className="mt-1">
+          {stock.label}
+        </StatusBadge>
+      )
 
       return (
         <div>
@@ -197,22 +197,50 @@ const columns: ColumnDef<MerchProduct>[] = [
     },
   },
   createCreatedAtColumn<MerchProduct>(),
-  createActionsColumn<MerchProduct>(ActionsCell),
-]
+  createActionsColumn<MerchProduct>(({ row }) => <ActionsCell product={row.original} onDelete={onDelete} />),
+  ]
+}
 
 interface MerchProductsTableProps {
   products: MerchProduct[]
+  loading?: boolean
 }
 
-export function MerchProductsTable({ products }: MerchProductsTableProps) {
+export function MerchProductsTable({ products, loading }: MerchProductsTableProps) {
+  const [productToDelete, setProductToDelete] = useState<MerchProduct | null>(null)
+  const [deleteProduct, { loading: isDeleting }] = useMutation(DELETE_MERCH_PRODUCT, {
+    refetchQueries: ['GetMerchProducts'],
+  })
+
+  const handleConfirmDelete = async () => {
+    if (!productToDelete) return
+    try {
+      await deleteProduct({ variables: { id: productToDelete.id } })
+      toast.success('Product deleted')
+      setProductToDelete(null)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete product')
+    }
+  }
+
   return (
-    <DataTable
-      data={products}
-      columns={columns}
-      showIndexColumn={false}
-      enableRowSelection
-      emptyMessage="No products found."
-      toolbarConfig={{ searchPlaceholder: 'Search products...' }}
-    />
+    <>
+      <DataTable
+        data={products}
+        columns={buildColumns(setProductToDelete)}
+        loading={loading}
+        showIndexColumn={false}
+        emptyMessage="No products found."
+        toolbarConfig={{ searchPlaceholder: 'Search products…' }}
+      />
+      <ConfirmDialog
+        open={!!productToDelete}
+        onOpenChange={(open) => !open && setProductToDelete(null)}
+        title="Delete this product?"
+        description={`"${getDisplayName(productToDelete?.name) || 'This product'}" and its variants will be permanently deleted. This cannot be undone.`}
+        isPending={isDeleting}
+        onConfirm={handleConfirmDelete}
+      />
+    </>
   )
 }

@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function NewsCreatePage() {
   return (
-    <div className='mx-auto max-w-6xl px-4 py-8'>
+    <div className='mx-auto max-w-6xl'>
       <NewsArticleFormBlockNote mode='create' />
     </div>
   )

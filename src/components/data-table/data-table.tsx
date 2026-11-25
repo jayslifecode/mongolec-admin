@@ -41,6 +41,9 @@ interface DataTableProps<TData> {
   pageCount?: number
 
   loading?: boolean
+  /** Query error message: shown with "Try again" instead of an empty table. */
+  error?: string | null
+  onRetry?: () => void
   emptyMessage?: string
   stickyHeader?: boolean
 
@@ -135,6 +138,8 @@ export function DataTable<TData>({
   manualFiltering = false,
   pageCount = -1,
   loading = false,
+  error = null,
+  onRetry,
   emptyMessage,
   stickyHeader = true,
   enablePinning = false,
@@ -191,7 +196,7 @@ export function DataTable<TData>({
         },
         meta: {
           className:
-            'text-center w-10 sticky start-0 z-10 shadow-[inset_-1px_0_0_0_theme(colors.border)] [&:is(th)]:bg-gray-50 dark:[&:is(th)]:bg-gray-900 [&:is(td)]:bg-background [[data-state=selected]_&]:bg-muted',
+            'text-center w-10 sticky start-0 z-10 shadow-[inset_-1px_0_0_0_theme(colors.border)] [&:is(th)]:bg-muted [&:is(td)]:bg-background [[data-state=selected]_&]:bg-muted',
         },
         enableSorting: false,
         enableHiding: false,
@@ -336,6 +341,8 @@ export function DataTable<TData>({
         table={table}
         actionBar={actionBar}
         loading={loading || isPending}
+        error={error}
+        onRetry={onRetry}
         emptyMessage={emptyMessage}
         stickyHeader={stickyHeader}
         enablePinning={enablePinning}

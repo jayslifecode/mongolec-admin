@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input'
 import { PasswordInput } from '@/components/password-input'
 import { LOGIN } from '@/graphql/mutations/auth'
 import { GET_ME } from '@/graphql/queries/auth'
+import { safeRedirectPath } from '../lib/safe-redirect'
 
 interface LoginData {
   login: {
@@ -80,15 +81,16 @@ export function UserAuthForm({
 
       if (loginData?.login?.user) {
         toast.success(`Welcome back, ${loginData.login.user.firstName}!`)
-        const targetPath = redirectTo || '/'
+        const targetPath = safeRedirectPath(redirectTo)
         window.location.href = targetPath
       } else {
         toast.error('Login failed')
       }
-    } catch (error: any) {
-      console.error('Login error:', error)
+    } catch (error) {
       toast.error(
-        error.message || 'Login failed. Please check your credentials.'
+        error instanceof Error && error.message
+          ? error.message
+          : 'Login failed. Please check your credentials.'
       )
     } finally {
       setIsLoading(false)
@@ -109,7 +111,7 @@ export function UserAuthForm({
             <FormItem>
               <FormLabel>Email</FormLabel>
               <FormControl>
-                <Input placeholder='name@example.com' {...field} />
+                <Input type='email' autoComplete='email' placeholder='name@example.com' {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -122,7 +124,7 @@ export function UserAuthForm({
             <FormItem className='relative'>
               <FormLabel>Password</FormLabel>
               <FormControl>
-                <PasswordInput placeholder='********' {...field} />
+                <PasswordInput autoComplete='current-password' placeholder='********' {...field} />
               </FormControl>
               <FormMessage />
               <Link
@@ -134,7 +136,7 @@ export function UserAuthForm({
             </FormItem>
           )}
         />
-        <Button className='mt-2' disabled={isLoading}>
+        <Button type='submit' className='mt-2' disabled={isLoading}>
           {isLoading ? <Loader2 className='animate-spin' /> : <LogIn />}
           Sign in
         </Button>

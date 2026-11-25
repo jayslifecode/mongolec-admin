@@ -1,5 +1,3 @@
-'use client'
-
 import Link from 'next/link'
 import {
   Card,
@@ -10,7 +8,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { AuthLayout } from '@/features/auth/auth-layout'
-import { ForgotPasswordForm } from '@/features/auth/components/forgot-password-form'
+import { ForgotPasswordNotice } from '@/features/auth/components/forgot-password-form'
 
 export default function ForgotPasswordPage() {
   return (
@@ -21,12 +19,11 @@ export default function ForgotPasswordPage() {
             Forgot Password
           </CardTitle>
           <CardDescription>
-            Enter your registered email and <br /> we will send you a link to
-            reset your password.
+            Password reset is handled by your administrators.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ForgotPasswordForm />
+          <ForgotPasswordNotice />
         </CardContent>
         <CardFooter>
           <p className='text-muted-foreground mx-auto px-8 text-center text-sm text-balance'>

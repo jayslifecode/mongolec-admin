@@ -7,7 +7,6 @@ import Link from 'next/link'
 import { useMutation } from '@apollo/client/react'
 import { toast } from 'sonner'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -23,29 +22,14 @@ import {
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
+  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { DataTable, createUpdatedAtColumn } from '@/components/data-table'
+import { InitialsAvatar, StatusBadge } from '@/components/admin'
 import type { ParticipantProfile } from '../types'
-import { riderTierConfig } from '../types'
 import { DELETE_PARTICIPANT_PROFILE } from '@/graphql/mutations/participant-profiles'
-
-function avatarColor(name: string) {
-  const p = [
-    'bg-rose-100 text-rose-700',
-    'bg-orange-100 text-orange-700',
-    'bg-amber-100 text-amber-700',
-    'bg-lime-100 text-lime-700',
-    'bg-teal-100 text-teal-700',
-    'bg-sky-100 text-sky-700',
-    'bg-violet-100 text-violet-700',
-    'bg-pink-100 text-pink-700',
-  ]
-  let h = 0
-  for (const c of name) h = (h * 31 + c.charCodeAt(0)) & 0xffff
-  return p[h % p.length]
-}
 
 function ActionsCell({
   participant,
@@ -57,8 +41,13 @@ function ActionsCell({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-8 w-8 p-0">
-          <MoreHorizontal className="h-4 w-4" />
+        <Button
+          type="button"
+          variant="ghost"
+          className="h-8 w-8 p-0"
+          aria-label={`Actions for ${participant.firstName} ${participant.lastName}`}
+        >
+          <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
@@ -72,7 +61,7 @@ function ActionsCell({
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          className="text-red-600"
+          className="text-destructive focus:text-destructive"
           onClick={() => onDeleteClick(participant.id)}
         >
           <Trash2 className="h-4 w-4 mr-2" />
@@ -89,27 +78,13 @@ function buildColumns(
   return [
     {
       id: 'fullName',
-      header: 'Participant',
+      header: 'Rider',
       cell: ({ row }) => {
         const p = row.original
         const fullName = `${p.firstName} ${p.lastName}`
-        const colorClass = avatarColor(fullName)
-        const initial = p.firstName[0]?.toUpperCase() ?? '?'
         return (
           <div className="flex items-center gap-3">
-            {p.photo ? (
-              <img
-                src={p.photo}
-                alt={fullName}
-                className="h-10 w-10 rounded-full object-cover border flex-shrink-0"
-              />
-            ) : (
-              <div
-                className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0 ${colorClass}`}
-              >
-                {initial}
-              </div>
-            )}
+            <InitialsAvatar name={fullName} src={p.photo} size={40} />
             <div className="min-w-0 flex-1">
               <div className="font-medium truncate">{fullName}</div>
             </div>
@@ -127,40 +102,19 @@ function buildColumns(
     {
       id: 'rallies',
       header: 'Rallies',
-      cell: ({ row }) => {
-        const p = row.original
-        const tierInfo = riderTierConfig[p.tier]
-        return (
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-mono text-muted-foreground">{p.rallyCount}</span>
-            <Badge className={tierInfo.className}>{tierInfo.label}</Badge>
-          </div>
-        )
-      },
-    },
-    {
-      id: 'honoraryTitle',
-      header: 'Honorary Title',
       cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">
-          {row.original.honoraryTitle || '—'}
-        </span>
+        <span className="text-muted-foreground text-sm tabular-nums">{row.original.rallyCount}</span>
       ),
     },
     {
       accessorKey: 'isActive',
       header: 'Status',
-      cell: ({ getValue }) => {
-        const active = getValue<boolean>()
-        return (
-          <Badge variant={active ? 'default' : 'secondary'} className="gap-1">
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-emerald-400' : 'bg-muted-foreground'}`}
-            />
-            {active ? 'Active' : 'Inactive'}
-          </Badge>
-        )
-      },
+      cell: ({ getValue }) =>
+        getValue<boolean>() ? (
+          <StatusBadge tone="success">Active</StatusBadge>
+        ) : (
+          <StatusBadge>Inactive</StatusBadge>
+        ),
     },
     createUpdatedAtColumn<ParticipantProfile>(),
     {
@@ -189,7 +143,7 @@ export function ParticipantProfileTable({
 
   const [deleteParticipant] = useMutation(DELETE_PARTICIPANT_PROFILE, {
     onCompleted: () => {
-      toast.success('Participant deleted successfully')
+      toast.success('Rider deleted')
       setDeleteDialogOpen(false)
       setSelectedId(null)
       onActionComplete?.()
@@ -216,20 +170,22 @@ export function ParticipantProfileTable({
         columns={columns}
         loading={loading}
         showIndexColumn={false}
-        emptyMessage="No participant profiles found."
-        toolbarConfig={{ searchPlaceholder: 'Search participants...' }}
+        emptyMessage="No riders found."
+        toolbarConfig={{ searchPlaceholder: 'Search riders...' }}
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Participant</AlertDialogTitle>
+            <AlertDialogTitle>Delete rider</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this participant? This action cannot be undone.
+              Are you sure you want to delete this rider? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>

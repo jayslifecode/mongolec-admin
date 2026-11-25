@@ -127,9 +127,8 @@ export function SignUpForm({ className, ...props }: SignUpFormProps) {
         // Handle registration failure
         toast.error(registerData?.register?.message || 'Registration failed')
       }
-    } catch (error: any) {
-      console.error('Registration error:', error)
-      toast.error(error.message || 'Registration failed. Please try again.')
+    } catch (error) {
+      toast.error(error instanceof Error && error.message ? error.message : 'Registration failed. Please try again.')
     } finally {
       setIsLoading(false)
     }
@@ -142,7 +141,7 @@ export function SignUpForm({ className, ...props }: SignUpFormProps) {
         className={cn('grid gap-3', className)}
         {...props}
       >
-        <div className='grid grid-cols-2 gap-2'>
+        <div className='grid grid-cols-1 gap-2 sm:grid-cols-2'>
           <FormField
             control={form.control}
             name='firstName'
@@ -150,7 +149,7 @@ export function SignUpForm({ className, ...props }: SignUpFormProps) {
               <FormItem>
                 <FormLabel>First Name</FormLabel>
                 <FormControl>
-                  <Input placeholder='John' {...field} />
+                  <Input autoComplete='given-name' placeholder='John' {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -163,7 +162,7 @@ export function SignUpForm({ className, ...props }: SignUpFormProps) {
               <FormItem>
                 <FormLabel>Last Name</FormLabel>
                 <FormControl>
-                  <Input placeholder='Doe' {...field} />
+                  <Input autoComplete='family-name' placeholder='Doe' {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -178,7 +177,7 @@ export function SignUpForm({ className, ...props }: SignUpFormProps) {
             <FormItem>
               <FormLabel>Email</FormLabel>
               <FormControl>
-                <Input placeholder='name@example.com' {...field} />
+                <Input type='email' autoComplete='email' placeholder='name@example.com' {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -223,7 +222,7 @@ export function SignUpForm({ className, ...props }: SignUpFormProps) {
             <FormItem>
               <FormLabel>Password</FormLabel>
               <FormControl>
-                <PasswordInput placeholder='********' {...field} />
+                <PasswordInput autoComplete='new-password' placeholder='********' {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -237,14 +236,14 @@ export function SignUpForm({ className, ...props }: SignUpFormProps) {
             <FormItem>
               <FormLabel>Confirm Password</FormLabel>
               <FormControl>
-                <PasswordInput placeholder='********' {...field} />
+                <PasswordInput autoComplete='new-password' placeholder='********' {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        <Button className='mt-2' disabled={isLoading}>
+        <Button type='submit' className='mt-2' disabled={isLoading}>
           {isLoading ? <Loader2 className='animate-spin' /> : <UserPlus />}
           Create Account
         </Button>

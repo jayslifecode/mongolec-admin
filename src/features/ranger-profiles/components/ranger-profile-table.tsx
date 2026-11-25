@@ -7,7 +7,6 @@ import Link from 'next/link'
 import { useMutation } from '@apollo/client/react'
 import { toast } from 'sonner'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -23,28 +22,14 @@ import {
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
+  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { DataTable, createCreatedAtColumn } from '@/components/data-table'
+import { InitialsAvatar, StatusBadge } from '@/components/admin'
 import type { RangerProfile } from '../types'
 import { DELETE_RANGER_PROFILE } from '@/graphql/mutations/ranger-profiles'
-
-function avatarColor(name: string) {
-  const p = [
-    'bg-rose-100 text-rose-700',
-    'bg-orange-100 text-orange-700',
-    'bg-amber-100 text-amber-700',
-    'bg-lime-100 text-lime-700',
-    'bg-teal-100 text-teal-700',
-    'bg-sky-100 text-sky-700',
-    'bg-violet-100 text-violet-700',
-    'bg-pink-100 text-pink-700',
-  ]
-  let h = 0
-  for (const c of name) h = (h * 31 + c.charCodeAt(0)) & 0xffff
-  return p[h % p.length]
-}
 
 function ActionsCell({
   ranger,
@@ -56,8 +41,13 @@ function ActionsCell({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-8 w-8 p-0">
-          <MoreHorizontal className="h-4 w-4" />
+        <Button
+          type="button"
+          variant="ghost"
+          className="h-8 w-8 p-0"
+          aria-label={`Actions for ${ranger.name}`}
+        >
+          <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
@@ -70,7 +60,7 @@ function ActionsCell({
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="text-red-600" onClick={() => onDeleteClick(ranger.id)}>
+        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => onDeleteClick(ranger.id)}>
           <Trash2 className="h-4 w-4 mr-2" />
           Delete
         </DropdownMenuItem>
@@ -86,23 +76,9 @@ function buildColumns(onDeleteClick: (id: string) => void): ColumnDef<RangerProf
       header: 'Ranger',
       cell: ({ row }) => {
         const ranger = row.original
-        const colorClass = avatarColor(ranger.name)
-        const initial = ranger.name[0]?.toUpperCase() ?? '?'
         return (
           <div className="flex items-center gap-3">
-            {ranger.photo ? (
-              <img
-                src={ranger.photo}
-                alt={ranger.name}
-                className="h-10 w-10 rounded-full object-cover border flex-shrink-0"
-              />
-            ) : (
-              <div
-                className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0 ${colorClass}`}
-              >
-                {initial}
-              </div>
-            )}
+            <InitialsAvatar name={ranger.name} src={ranger.photo} size={40} />
             <div className="min-w-0 flex-1">
               <div className="font-medium truncate">{ranger.name}</div>
               <div className="text-xs text-muted-foreground truncate">{ranger.parkName}</div>
@@ -122,23 +98,18 @@ function buildColumns(onDeleteClick: (id: string) => void): ColumnDef<RangerProf
       accessorKey: 'displayOrder',
       header: 'Order',
       cell: ({ getValue }) => (
-        <span className="text-sm font-mono text-muted-foreground">#{getValue<number>()}</span>
+        <span className="text-muted-foreground text-sm tabular-nums">{getValue<number>()}</span>
       ),
     },
     {
       accessorKey: 'isActive',
       header: 'Status',
-      cell: ({ getValue }) => {
-        const active = getValue<boolean>()
-        return (
-          <Badge variant={active ? 'default' : 'secondary'} className="gap-1">
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-emerald-400' : 'bg-muted-foreground'}`}
-            />
-            {active ? 'Active' : 'Inactive'}
-          </Badge>
-        )
-      },
+      cell: ({ getValue }) =>
+        getValue<boolean>() ? (
+          <StatusBadge tone="success">Active</StatusBadge>
+        ) : (
+          <StatusBadge>Inactive</StatusBadge>
+        ),
     },
     createCreatedAtColumn<RangerProfile>(),
     {
@@ -161,7 +132,7 @@ export function RangerProfileTable({ rangers, loading, onActionComplete }: Range
 
   const [deleteRanger] = useMutation(DELETE_RANGER_PROFILE, {
     onCompleted: () => {
-      toast.success('Ranger deleted successfully')
+      toast.success('Ranger deleted')
       setDeleteDialogOpen(false)
       setSelectedId(null)
       onActionComplete?.()
@@ -195,13 +166,15 @@ export function RangerProfileTable({ rangers, loading, onActionComplete }: Range
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Ranger</AlertDialogTitle>
+            <AlertDialogTitle>Delete ranger</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete this ranger? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>

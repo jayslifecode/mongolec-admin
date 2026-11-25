@@ -1,3 +1,5 @@
+import type { StatusTone } from '@/lib/ui/status-tones'
+
 export interface NewsCategory {
   id: string
   name: string
@@ -27,55 +29,19 @@ export interface NewsArticle {
 }
 
 export const priorityConfig = {
-  breaking: {
-    label: 'Breaking',
-    color: 'bg-red-500 text-white border-red-500',
-    variant: 'destructive' as const,
-  },
-  urgent: {
-    label: 'Urgent',
-    color: 'bg-orange-500 text-white border-orange-500',
-    variant: 'default' as const,
-  },
-  high: {
-    label: 'High',
-    color: 'bg-yellow-500 text-black border-yellow-500',
-    variant: 'outline' as const,
-  },
-  normal: {
-    label: 'Normal',
-    color: 'bg-blue-500 text-white border-blue-500',
-    variant: 'default' as const,
-  },
-  low: {
-    label: 'Low',
-    color: 'bg-gray-500 text-white border-gray-500',
-    variant: 'secondary' as const,
-  },
-} as const
+  breaking: { label: 'Breaking', tone: 'danger' },
+  urgent: { label: 'Urgent', tone: 'warning' },
+  high: { label: 'High', tone: 'neutral' },
+  normal: { label: 'Normal', tone: 'neutral' },
+  low: { label: 'Low', tone: 'neutral' },
+} as const satisfies Record<NewsArticle['priority'], { label: string; tone: StatusTone }>
 
 export const statusConfig = {
-  draft: {
-    label: 'Draft',
-    color: 'bg-gray-200 text-gray-800 border-gray-300',
-    variant: 'outline' as const,
-  },
-  published: {
-    label: 'Published',
-    color: 'bg-green-500 text-white border-green-500',
-    variant: 'default' as const,
-  },
-  scheduled: {
-    label: 'Scheduled',
-    color: 'bg-blue-500 text-white border-blue-500',
-    variant: 'default' as const,
-  },
-  archived: {
-    label: 'Archived',
-    color: 'bg-red-200 text-red-800 border-red-300',
-    variant: 'destructive' as const,
-  },
-} as const
+  draft: { label: 'Draft', tone: 'neutral' },
+  published: { label: 'Published', tone: 'success' },
+  scheduled: { label: 'Scheduled', tone: 'warning' },
+  archived: { label: 'Archived', tone: 'neutral' },
+} as const satisfies Record<NewsArticle['status'], { label: string; tone: StatusTone }>
 
 export interface NewsFilters {
   search?: string

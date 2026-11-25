@@ -95,16 +95,16 @@ export function getCommonPinningStyles<TData>({
   return {
     boxShadow: withBorder
       ? isLastLeftPinnedColumn
-        ? '-4px 0 4px -4px hsl(var(--border)) inset'
+        ? '-4px 0 4px -4px var(--border) inset'
         : isFirstRightPinnedColumn
-          ? '4px 0 4px -4px hsl(var(--border)) inset'
+          ? '4px 0 4px -4px var(--border) inset'
           : undefined
       : undefined,
     left: isPinned === 'left' ? `${column.getStart('left')}px` : undefined,
     right: isPinned === 'right' ? `${column.getAfter('right')}px` : undefined,
     opacity: isPinned ? 0.97 : 1,
     position: isPinned ? 'sticky' : 'relative',
-    background: 'hsl(var(--background))',
+    background: 'var(--background)',
     width: customWidth ?? column.getSize(),
     zIndex: isPinned ? 1 : 0,
   }
@@ -221,8 +221,7 @@ export const createStatusColumn = <T>(
           variant: config.variant,
           className: `
             ${config.className || ''}
-            transition-all duration-200 ease-in-out
-            hover:scale-105 hover:shadow-sm
+            transition-colors
             cursor-default select-none
             flex items-center gap-1.5
             font-medium text-xs px-2.5 py-1
@@ -264,7 +263,7 @@ export const createEmailColumn = <T>(
   cell: ({ row }) => {
     const email = row.getValue(accessorKey) as string
     return email
-      ? React.createElement('a', { href: `mailto:${email}`, className: 'text-blue-600 hover:underline' }, email)
+      ? React.createElement('a', { href: `mailto:${email}`, className: 'text-primary hover:underline' }, email)
       : React.createElement('span', { className: 'text-muted-foreground' }, '-')
   },
   enableSorting: options?.sortable !== false,
@@ -378,7 +377,7 @@ export const createBooleanColumn = <T>(
         'div',
         { className: 'flex items-center justify-center' },
         React.createElement('div', {
-          className: `h-2 w-2 rounded-full ${value ? 'bg-green-500' : 'bg-gray-300'}`,
+          className: `h-2 w-2 rounded-full ${value ? 'bg-success' : 'bg-muted-foreground/40'}`,
         })
       )
     }
@@ -469,7 +468,7 @@ export const createActionsColumn = <T>(
     React.createElement(
       'div',
       { className: 'flex items-center justify-center w-full h-full' },
-      React.createElement('span', { className: 'font-medium' }, 'Үйлдэл')
+      React.createElement('span', { className: 'font-medium' }, 'Actions')
     ),
   cell: ({ row }) =>
     React.createElement(
@@ -482,7 +481,7 @@ export const createActionsColumn = <T>(
   meta: {
     className: `${options?.width ? `w-[${options.width}]` : 'w-[60px]'} ${
       (options?.sticky ?? true)
-        ? 'px-0 text-center sticky end-0 z-10 [&:is(th)]:z-30 shadow-[inset_1px_0_0_0_theme(colors.border)] [&:is(th)]:bg-gray-50 dark:[&:is(th)]:bg-gray-900 [&:is(td)]:bg-background'
+        ? 'px-0 text-center sticky end-0 z-10 [&:is(th)]:z-30 shadow-[inset_1px_0_0_0_theme(colors.border)] [&:is(th)]:bg-muted [&:is(td)]:bg-background'
         : ''
     }`,
   },

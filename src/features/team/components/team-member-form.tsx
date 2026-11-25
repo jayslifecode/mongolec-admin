@@ -13,7 +13,8 @@ import { AlertCircle, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { CREATE_TEAM_MEMBER, UPDATE_TEAM_MEMBER } from '@/graphql/mutations/team'
-import { FormSection } from '@/components/admin'
+import { FormField, FormSection } from '@/components/admin'
+import { validateTeamMemberForm } from '../lib/validation'
 import type { TeamMember } from '../types'
 
 interface TeamMemberFormProps {
@@ -25,6 +26,7 @@ interface TeamMemberFormProps {
 export function TeamMemberForm({ mode, initialData, memberId }: TeamMemberFormProps) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const [formData, setFormData] = useState({
     name: initialData?.name || '',
@@ -36,12 +38,11 @@ export function TeamMemberForm({ mode, initialData, memberId }: TeamMemberFormPr
     twitterUrl: initialData?.twitterUrl || '',
     displayOrder: initialData?.displayOrder?.toString() || '0',
     isActive: initialData?.isActive ?? true,
-    tenantId: initialData?.tenantId || '',
   })
 
   const [createMember, { loading: createLoading }] = useMutation(CREATE_TEAM_MEMBER, {
     onCompleted: () => {
-      toast.success('Team member created successfully')
+      toast.success('Team member added')
       router.push('/team')
     },
     onError: (err) => {
@@ -52,7 +53,7 @@ export function TeamMemberForm({ mode, initialData, memberId }: TeamMemberFormPr
 
   const [updateMember, { loading: updateLoading }] = useMutation(UPDATE_TEAM_MEMBER, {
     onCompleted: () => {
-      toast.success('Team member updated successfully')
+      toast.success('Team member updated')
       router.push('/team')
     },
     onError: (err) => {
@@ -67,32 +68,41 @@ export function TeamMemberForm({ mode, initialData, memberId }: TeamMemberFormPr
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
 
-    if (!formData.name.trim()) {
-      setError('Name is required')
-      return
+    const values = {
+      name: formData.name,
+      role: formData.role,
+      bio: formData.bio,
+      photo: formData.photo.trim(),
+      email: formData.email.trim(),
+      linkedinUrl: formData.linkedinUrl.trim(),
+      twitterUrl: formData.twitterUrl.trim(),
+      displayOrder: formData.displayOrder.trim() === '' ? 0 : Number(formData.displayOrder),
+      isActive: formData.isActive,
     }
-    if (!formData.role.trim()) {
-      setError('Role is required')
+    const errors = validateTeamMemberForm(values)
+    setFieldErrors(errors)
+    const firstKey = Object.keys(errors)[0]
+    if (firstKey) {
+      toast.error('Please fix the highlighted fields')
+      document.getElementById(`team-${firstKey}`)?.focus()
       return
     }
 
+    // No tenantId: the backend files new members under the organisation of the current page.
     const input: Record<string, unknown> = {
-      name: formData.name.trim(),
-      role: formData.role.trim(),
-      bio: formData.bio.trim() || null,
-      photo: formData.photo.trim() || null,
-      email: formData.email.trim() || null,
-      linkedinUrl: formData.linkedinUrl.trim() || null,
-      twitterUrl: formData.twitterUrl.trim() || null,
-      displayOrder: parseInt(formData.displayOrder) || 0,
-      isActive: formData.isActive,
-    }
-    if (formData.tenantId.trim()) {
-      input.tenantId = formData.tenantId.trim()
+      name: values.name.trim(),
+      role: values.role.trim(),
+      bio: values.bio.trim() || null,
+      photo: values.photo || null,
+      email: values.email || null,
+      linkedinUrl: values.linkedinUrl || null,
+      twitterUrl: values.twitterUrl || null,
+      displayOrder: values.displayOrder,
+      isActive: values.isActive,
     }
 
     if (mode === 'create') {
@@ -102,140 +112,132 @@ export function TeamMemberForm({ mode, initialData, memberId }: TeamMemberFormPr
     }
   }
 
+  const textField = (
+    key: 'name' | 'role' | 'email' | 'linkedinUrl' | 'twitterUrl' | 'photo',
+    label: string,
+    opts: { required?: boolean; type?: string; placeholder?: string; description?: string } = {},
+  ) => (
+    <FormField
+      id={`team-${key}`}
+      label={label}
+      required={opts.required}
+      description={opts.description}
+      error={fieldErrors[key]}
+    >
+      {(props) => (
+        <Input
+          {...props}
+          type={opts.type}
+          value={formData[key]}
+          onChange={(e) => handleChange(key, e.target.value)}
+          placeholder={opts.placeholder}
+        />
+      )}
+    </FormField>
+  )
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} noValidate className="space-y-6">
       {error && (
         <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
+          <AlertCircle className="h-4 w-4" aria-hidden="true" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
-      <FormSection title="Basic Information" description="Name, role, and contact details">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label>Name <span className="text-destructive">*</span></Label>
-            <Input
-              value={formData.name}
-              onChange={(e) => handleChange('name', e.target.value)}
-              placeholder="Full name"
-              required
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Role / Title <span className="text-destructive">*</span></Label>
-            <Input
-              value={formData.role}
-              onChange={(e) => handleChange('role', e.target.value)}
-              placeholder="E.g., Executive Director"
-              required
-            />
-          </div>
+      <FormSection title="Basic information" description="Name, role and contact details">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {textField('name', 'Name', { required: true, placeholder: 'Full name' })}
+          {textField('role', 'Role / title', { required: true, placeholder: 'E.g., Executive Director' })}
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label>Email</Label>
-            <Input
-              type="email"
-              value={formData.email}
-              onChange={(e) => handleChange('email', e.target.value)}
-              placeholder="contact@example.com"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Display Order</Label>
-            <Input
-              type="number"
-              value={formData.displayOrder}
-              onChange={(e) => handleChange('displayOrder', e.target.value)}
-              placeholder="0"
-              min="0"
-            />
-          </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {textField('email', 'Email', { type: 'email', placeholder: 'contact@example.com' })}
+          <FormField
+            id="team-displayOrder"
+            label="Display order"
+            description="Lower numbers are shown first."
+            error={fieldErrors.displayOrder}
+          >
+            {(props) => (
+              <Input
+                {...props}
+                type="number"
+                inputMode="numeric"
+                min={0}
+                step={1}
+                value={formData.displayOrder}
+                onChange={(e) => handleChange('displayOrder', e.target.value)}
+                placeholder="0"
+              />
+            )}
+          </FormField>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label>LinkedIn URL</Label>
-            <Input
-              value={formData.linkedinUrl}
-              onChange={(e) => handleChange('linkedinUrl', e.target.value)}
-              placeholder="https://linkedin.com/in/..."
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Twitter / X URL</Label>
-            <Input
-              value={formData.twitterUrl}
-              onChange={(e) => handleChange('twitterUrl', e.target.value)}
-              placeholder="https://twitter.com/..."
-            />
-          </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {textField('linkedinUrl', 'LinkedIn link', { type: 'url', placeholder: 'https://linkedin.com/in/...' })}
+          {textField('twitterUrl', 'Twitter / X link', { type: 'url', placeholder: 'https://twitter.com/...' })}
         </div>
       </FormSection>
 
       <FormSection title="Photo">
-        <div className="space-y-1.5">
-          <Label>Photo URL</Label>
-          <Input
-            value={formData.photo}
-            onChange={(e) => handleChange('photo', e.target.value)}
-            placeholder="https://example.com/photo.jpg"
-          />
-        </div>
-        {formData.photo && (
+        {textField('photo', 'Photo link', {
+          type: 'url',
+          placeholder: 'https://example.com/photo.jpg',
+          description: 'A full link starting with https://',
+        })}
+        {formData.photo && !fieldErrors.photo && (
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={formData.photo}
-            alt="Preview"
-            className="h-32 w-32 rounded-lg object-cover border mt-2"
+            alt="Preview of the member photo"
+            className="border-border h-32 w-32 rounded-lg border object-cover"
           />
         )}
       </FormSection>
 
       <FormSection title="Biography">
-        <Textarea
-          value={formData.bio}
-          onChange={(e) => handleChange('bio', e.target.value)}
-          placeholder="Enter biography"
-          className="min-h-28"
-        />
+        <FormField id="team-bio" label="Biography">
+          {(props) => (
+            <Textarea
+              {...props}
+              value={formData.bio}
+              onChange={(e) => handleChange('bio', e.target.value)}
+              placeholder="Enter biography"
+              className="min-h-28"
+            />
+          )}
+        </FormField>
       </FormSection>
 
       <FormSection title="Settings">
-        <div className="space-y-1.5">
-          <Label>
-            Tenant ID{' '}
-            <span className="text-muted-foreground text-xs font-normal">(super admin only — leave blank for current tenant)</span>
-          </Label>
-          <Input
-            value={formData.tenantId}
-            onChange={(e) => handleChange('tenantId', e.target.value)}
-            placeholder="e.g. cmh4hw7vl0001hc87f9vk5h6q"
-          />
-        </div>
-
-        <div className="flex items-center justify-between rounded-lg border border-border/50 px-4 py-3">
+        <div className="border-border flex items-center justify-between rounded-lg border px-4 py-3">
           <div>
-            <p className="text-sm font-medium">Active</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Visible in the public team listing</p>
+            <Label htmlFor="team-isActive" className="text-sm font-medium">
+              Active
+            </Label>
+            <p id="team-isActive-description" className="text-muted-foreground mt-0.5 text-xs">
+              Visible in the public team listing
+            </p>
           </div>
           <Switch
+            id="team-isActive"
+            aria-describedby="team-isActive-description"
             checked={formData.isActive}
             onCheckedChange={(checked) => handleChange('isActive', checked)}
           />
         </div>
       </FormSection>
 
-      <div className="sticky bottom-0 z-10 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <div className="border-border bg-background sticky bottom-0 z-10 border-t">
         <div className="flex items-center gap-3 py-4">
           <Button type="submit" disabled={loading} className="min-w-[160px]">
-            {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {mode === 'create' ? 'Add Member' : 'Save Changes'}
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
+            {mode === 'create' ? 'Add member' : 'Save changes'}
           </Button>
-          <Link href="/team">
-            <Button type="button" variant="outline">Cancel</Button>
-          </Link>
+          <Button type="button" variant="outline" asChild>
+            <Link href="/team">Cancel</Link>
+          </Button>
         </div>
       </div>
     </form>

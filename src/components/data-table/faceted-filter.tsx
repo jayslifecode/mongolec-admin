@@ -81,7 +81,7 @@ export function DataTableFacetedFilter<TData, TValue>({
           variant="outline"
           size="sm"
           className={cn(
-            'h-8 border-dashed transition-all duration-200',
+            'h-8 border-dashed transition-colors',
             'hover:bg-muted/60 hover:border-muted-foreground/50',
             selectedValues?.size > 0 &&
               'border-primary bg-primary/5 text-primary hover:bg-primary/10'
@@ -101,7 +101,7 @@ export function DataTableFacetedFilter<TData, TValue>({
               <div className="hidden space-x-1 lg:flex">
                 {selectedValues.size > 2 ? (
                   <Badge variant="secondary" className="rounded-full px-2 py-0 text-xs font-medium">
-                    {selectedValues.size} сонгосон
+                    {selectedValues.size} selected
                   </Badge>
                 ) : (
                   options
@@ -130,7 +130,7 @@ export function DataTableFacetedFilter<TData, TValue>({
       >
         <Command className="rounded-lg">
           <CommandInput
-            placeholder={`Хайх ${title?.toLowerCase()}...`}
+            placeholder={`Search ${title?.toLowerCase()}...`}
             className="h-9 border-0 focus:ring-0"
           />
           <CommandList className="max-h-64">
@@ -188,7 +188,7 @@ export function DataTableFacetedFilter<TData, TValue>({
                     className="text-muted-foreground hover:text-foreground mb-1 cursor-pointer justify-center py-2 text-center"
                   >
                     <X className="mr-2 h-4 w-4" />
-                    Цэвэрлэх
+                    Clear
                   </CommandItem>
                 </CommandGroup>
               </>

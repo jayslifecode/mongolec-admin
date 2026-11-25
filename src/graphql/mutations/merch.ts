@@ -196,3 +196,15 @@ export const CREATE_PRESIGNED_UPLOAD_URL = gql`
     }
   }
 `
+
+export const DELETE_MERCH_PRODUCT = gql`
+  mutation DeleteMerchProduct($id: ID!) {
+    deleteMerchProduct(id: $id)
+  }
+`
+
+export const DELETE_MERCH_CATEGORY = gql`
+  mutation DeleteMerchCategory($id: ID!) {
+    deleteMerchCategory(id: $id)
+  }
+`

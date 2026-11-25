@@ -28,7 +28,7 @@ type DateFilterProps<TData, TValue> = {
 export function DataTableDateFilter<TData, TValue>({
   column,
   title,
-  placeholder = 'Огноо сонгох...',
+  placeholder = 'Pick a date…',
   icon: Icon = Calendar,
   value: externalValue,
   onValueChange: externalOnValueChange,
@@ -115,7 +115,7 @@ export function DataTableDateFilter<TData, TValue>({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            'h-8 min-w-[200px] justify-between border-dashed transition-all duration-200',
+            'h-8 min-w-[200px] justify-between border-dashed transition-colors',
             'hover:bg-muted/60 hover:border-muted-foreground/50',
             selectedDate && 'border-primary bg-primary/5 text-primary hover:bg-primary/10'
           )}

@@ -4,7 +4,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { Edit, Trash2, MoreHorizontal, Building2 } from 'lucide-react'
 import Link from 'next/link'
 
-import { Badge } from '@/components/ui/badge'
+import { StatusBadge } from '@/components/admin'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { DataTable, createCreatedAtColumn } from '@/components/data-table'
+import type { StatusTone } from '@/lib/ui/status-tones'
 import type { Tenant } from '../types'
 import { tenantStatusConfig, tenantPlanConfig } from '../types'
 
@@ -28,9 +29,8 @@ function ActionsCell({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8">
-          <MoreHorizontal className="h-4 w-4" />
-          <span className="sr-only">Open menu</span>
+        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={`Actions for ${tenant.name}`}>
+          <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
@@ -67,7 +67,7 @@ function buildColumns(onDelete?: (id: string) => void): ColumnDef<Tenant>[] {
         return (
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted border flex-shrink-0">
-              <Building2 className="h-5 w-5 text-muted-foreground" />
+              <Building2 className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="font-semibold truncate">{tenant.name}</div>
@@ -82,17 +82,13 @@ function buildColumns(onDelete?: (id: string) => void): ColumnDef<Tenant>[] {
       header: 'Plan & Status',
       cell: ({ row }) => {
         const tenant = row.original
-        const planConf = tenantPlanConfig[tenant.plan]
-        const statusConf = tenantStatusConfig[tenant.status]
+        const planConf = tenantPlanConfig[tenant.plan] as { label: string; tone: StatusTone } | undefined
+        const statusConf = tenantStatusConfig[tenant.status] as { label: string; tone: StatusTone } | undefined
         return (
           <div>
-            <Badge variant="outline" className={planConf?.color || ''}>
-              {planConf?.label || tenant.plan}
-            </Badge>
+            <StatusBadge tone={planConf?.tone ?? 'neutral'}>{planConf?.label ?? tenant.plan}</StatusBadge>
             <div className="mt-1">
-              <Badge variant="outline" className={statusConf?.color || ''}>
-                {statusConf?.label || tenant.status}
-              </Badge>
+              <StatusBadge tone={statusConf?.tone ?? 'neutral'}>{statusConf?.label ?? tenant.status}</StatusBadge>
             </div>
           </div>
         )
@@ -109,20 +105,21 @@ function buildColumns(onDelete?: (id: string) => void): ColumnDef<Tenant>[] {
 
 interface TenantsTableProps {
   tenants: Tenant[]
+  loading?: boolean
   onDelete?: (id: string) => void
 }
 
-export function TenantsTable({ tenants, onDelete }: TenantsTableProps) {
+export function TenantsTable({ tenants, loading, onDelete }: TenantsTableProps) {
   const columns = buildColumns(onDelete)
 
   return (
     <DataTable
       data={tenants}
       columns={columns}
+      loading={loading}
       showIndexColumn={false}
-      enableRowSelection
       emptyMessage="No tenants found."
-      toolbarConfig={{ searchPlaceholder: 'Search tenants...' }}
+      toolbarConfig={{ searchPlaceholder: 'Search tenants…' }}
     />
   )
 }

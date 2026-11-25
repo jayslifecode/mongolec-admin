@@ -1,3 +1,5 @@
+import type { StatusTone } from '@/lib/ui/status-tones'
+
 export type LocalizedText = { en: string; mn: string } | string
 
 export interface RallyRef {
@@ -164,24 +166,12 @@ export const storyTypeConfig: Record<StoryType, { label: string }> = {
   NEWS: { label: 'News' },
 }
 
-export const storyStatusConfig = {
-  DRAFT: {
-    label: 'Draft',
-    variant: 'outline' as const,
-  },
-  PUBLISHED: {
-    label: 'Published',
-    variant: 'default' as const,
-  },
-  ARCHIVED: {
-    label: 'Archived',
-    variant: 'secondary' as const,
-  },
-  SCHEDULED: {
-    label: 'Scheduled',
-    variant: 'secondary' as const,
-  },
-} as const
+export const storyStatusConfig: Record<ContentStatus, { label: string; tone: StatusTone }> = {
+  DRAFT: { label: 'Draft', tone: 'neutral' },
+  PUBLISHED: { label: 'Published', tone: 'success' },
+  ARCHIVED: { label: 'Archived', tone: 'neutral' },
+  SCHEDULED: { label: 'Scheduled', tone: 'warning' },
+}
 
 export const BLOCK_TYPE_LABELS: Record<StoryBlockType, string> = {
   hero: 'Hero',

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { type ColumnDef } from '@tanstack/react-table'
 import {
   Check,
@@ -37,6 +38,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
+import { InitialsAvatar, StatusBadge } from '@/components/admin'
+import { QueryErrorState } from '@/components/query-error-state'
+import { useUrlTableState } from '@/hooks/use-url-table-state'
+import type { StatusTone } from '@/lib/ui/status-tones'
 import { Textarea } from '@/components/ui/textarea'
 
 import type { User } from '../types'
@@ -64,16 +69,16 @@ interface UsersDataTableClientProps {
   totalItems: number
   currentPage: number
   pageSize: number
+  search?: string
+  /** Set when the list could not be loaded. */
+  error?: string
 }
 
-const statusConfig: Record<
-  string,
-  { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: React.ElementType }
-> = {
-  ACTIVE:   { label: 'Active',   variant: 'default',     icon: CheckCircle2 },
-  PENDING:  { label: 'Pending',  variant: 'outline',     icon: Clock },
-  REJECTED: { label: 'Rejected', variant: 'destructive', icon: XCircle },
-  INACTIVE: { label: 'Inactive', variant: 'secondary',   icon: MinusCircle },
+const statusConfig: Record<string, { label: string; tone: StatusTone; icon: React.ElementType }> = {
+  ACTIVE:   { label: 'Active',   tone: 'success', icon: CheckCircle2 },
+  PENDING:  { label: 'Pending',  tone: 'warning', icon: Clock },
+  REJECTED: { label: 'Rejected', tone: 'danger',  icon: XCircle },
+  INACTIVE: { label: 'Inactive', tone: 'neutral', icon: MinusCircle },
 }
 
 function getUserStatus(user: User): string {
@@ -81,12 +86,6 @@ function getUserStatus(user: User): string {
   if (user.isActive) return 'ACTIVE'
   if (!user.approvedAt) return 'PENDING'
   return 'INACTIVE'
-}
-
-function avatarColor(name: string) {
-  const p = ['bg-rose-100 text-rose-700','bg-orange-100 text-orange-700','bg-amber-100 text-amber-700','bg-lime-100 text-lime-700','bg-teal-100 text-teal-700','bg-sky-100 text-sky-700','bg-violet-100 text-violet-700','bg-pink-100 text-pink-700']
-  let h = 0; for (const c of name) h = (h * 31 + c.charCodeAt(0)) & 0xffff
-  return p[h % p.length]
 }
 
 function UserActionsMenu({
@@ -107,9 +106,8 @@ function UserActionsMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8">
-          <MoreHorizontal className="h-4 w-4" />
-          <span className="sr-only">Open menu</span>
+        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={`Actions for ${user.email}`}>
+          <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
@@ -118,7 +116,6 @@ function UserActionsMenu({
         {canApprove && (
           <DropdownMenuItem
             onClick={() => onApprove(user.id)}
-            className="text-emerald-600 focus:text-emerald-600 focus:bg-emerald-50"
           >
             <Check className="h-4 w-4 mr-2" />
             Approve
@@ -143,8 +140,18 @@ export function UsersDataTableClient({
   totalItems,
   currentPage,
   pageSize,
+  search,
+  error,
 }: UsersDataTableClientProps) {
+  const router = useRouter()
+  const tableState = useUrlTableState({ pageIndex: currentPage - 1, pageSize, search })
   const [users, setUsers] = useState(initialUsers)
+  const [syncedFrom, setSyncedFrom] = useState(initialUsers)
+  // Show fresh server data after paging/searching/refresh (render-time sync, no effect needed).
+  if (syncedFrom !== initialUsers) {
+    setSyncedFrom(initialUsers)
+    setUsers(initialUsers)
+  }
   const [rejectTarget, setRejectTarget] = useState<User | null>(null)
   const [rejectReason, setRejectReason] = useState('')
 
@@ -199,15 +206,9 @@ export function UsersDataTableClient({
         const fullName = hasName
           ? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()
           : null
-        const initials = hasName
-          ? `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase()
-          : user.email[0]?.toUpperCase() ?? '?'
-        const colorClass = avatarColor(fullName ?? user.email)
         return (
           <div className="flex items-center gap-3">
-            <div className={`h-9 w-9 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0 ${colorClass}`}>
-              {initials}
-            </div>
+            <InitialsAvatar name={fullName ?? user.email} size={36} />
             <div className="min-w-0">
               <div className="font-medium text-sm">
                 {fullName ?? <span className="text-muted-foreground italic">No name</span>}
@@ -249,10 +250,10 @@ export function UsersDataTableClient({
         const config = statusConfig[status]
         const Icon = config.icon
         return (
-          <Badge variant={config.variant} className="text-xs gap-1">
-            <Icon className="h-3 w-3" />
+          <StatusBadge tone={config.tone}>
+            <Icon className="h-3 w-3" aria-hidden="true" />
             {config.label}
-          </Badge>
+          </StatusBadge>
         )
       },
     },
@@ -262,13 +263,10 @@ export function UsersDataTableClient({
       cell: ({ row }) => {
         const emailVerified = row.original.emailVerified
         return (
-          <Badge
-            variant="outline"
-            className={emailVerified ? 'bg-emerald-50 text-emerald-700 border-emerald-200 gap-1' : 'text-muted-foreground gap-1'}
-          >
-            {emailVerified ? <CheckCircle2 className="h-3 w-3" /> : <MinusCircle className="h-3 w-3" />}
+          <StatusBadge tone={emailVerified ? 'success' : 'neutral'}>
+            {emailVerified ? <CheckCircle2 className="h-3 w-3" aria-hidden="true" /> : <MinusCircle className="h-3 w-3" aria-hidden="true" />}
             {emailVerified ? 'Verified' : 'Unverified'}
-          </Badge>
+          </StatusBadge>
         )
       },
     },
@@ -296,12 +294,21 @@ export function UsersDataTableClient({
 
   return (
     <>
+      {error ? (
+        <QueryErrorState
+          title="Couldn't load users"
+          message={error}
+          onRetry={() => router.refresh()}
+        />
+      ) : (
       <DataTable
         data={users}
         columns={columns}
         manualPagination
+        manualFiltering
         pageCount={Math.ceil(totalItems / pageSize)}
-        pagination={{ pageIndex: currentPage - 1, pageSize }}
+        {...tableState}
+        loading={tableState.isPending}
         showIndexColumn={false}
         toolbarConfig={{
           searchPlaceholder: 'Search users by name or email…',
@@ -309,6 +316,7 @@ export function UsersDataTableClient({
           enableFilter: false,
         }}
       />
+      )}
 
       <Dialog
         open={!!rejectTarget}
@@ -338,12 +346,14 @@ export function UsersDataTableClient({
           </div>
           <DialogFooter>
             <Button
+              type="button"
               variant="outline"
               onClick={() => { setRejectTarget(null); setRejectReason('') }}
             >
               Cancel
             </Button>
             <Button
+              type="button"
               variant="destructive"
               disabled={rejecting}
               onClick={handleRejectConfirm}

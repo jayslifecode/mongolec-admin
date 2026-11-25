@@ -31,6 +31,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 interface OptionValue {
   en: string;
@@ -65,7 +66,14 @@ interface VariantBuilderProps {
   language: "en" | "mn";
   onOptionsChange: (options: ProductOption[]) => void;
   onVariantsChange: (variants: Variant[]) => void;
+  /** Validation messages keyed like `variant.<index>.sku` (see product-schema). */
+  errors?: Record<string, string>;
 }
+
+type PendingConfirm =
+  | { kind: "clear-values"; optionId: string }
+  | { kind: "delete-option"; optionId: string }
+  | null;
 
 export function VariantBuilder({
   options,
@@ -74,7 +82,9 @@ export function VariantBuilder({
   language,
   onOptionsChange,
   onVariantsChange,
+  errors = {},
 }: VariantBuilderProps) {
+  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm>(null);
   const [newOptionName, setNewOptionName] = useState({ en: "", mn: "" });
   const [newOptionValue, setNewOptionValue] = useState<
     Record<string, { en: string; mn: string }>
@@ -325,6 +335,7 @@ export function VariantBuilder({
               </div>
             </div>
             <Button
+              type="button"
               onClick={addOption}
               disabled={!isOptionValid}
               className="w-full md:w-auto"
@@ -353,37 +364,36 @@ export function VariantBuilder({
                     value={option.id}
                     className="rounded-lg border bg-card"
                   >
-                    <AccordionTrigger className="hover:no-underline py-4 px-4">
-                      <div className="flex items-center justify-between w-full pr-4">
-                        <div className="flex items-center gap-3">
-                          <Badge
-                            variant="outline"
-                            className="font-mono text-xs"
-                          >
-                            #{index + 1}
-                          </Badge>
-                          <div className="text-left">
-                            <div className="font-medium">
-                              {option.name[language]}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {option.values.length}{" "}
-                              {option.values.length === 1 ? "value" : "values"}
+                    <div className="flex items-center pr-2">
+                      <div className="min-w-0 flex-1">
+                        <AccordionTrigger className="hover:no-underline py-4 px-4">
+                          <div className="flex items-center gap-3">
+                            <Badge variant="outline" className="font-mono text-xs">
+                              #{index + 1}
+                            </Badge>
+                            <div className="text-left">
+                              <div className="font-medium">{option.name[language]}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {option.values.length}{" "}
+                                {option.values.length === 1 ? "value" : "values"}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        <span
-                          role="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeOption(option.id);
-                          }}
-                          className="inline-flex items-center justify-center h-9 w-9 rounded-md hover:bg-destructive/10 hover:text-destructive transition-colors cursor-pointer"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </span>
+                        </AccordionTrigger>
                       </div>
-                    </AccordionTrigger>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 shrink-0 hover:bg-destructive/10 hover:text-destructive"
+                        aria-label={`Delete option ${option.name[language]}`}
+                        onClick={() =>
+                          setPendingConfirm({ kind: "delete-option", optionId: option.id })
+                        }
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                      </Button>
+                    </div>
                     <AccordionContent className="pb-4 px-4">
                       <div className="space-y-4">
                         {/* Option Values Display */}
@@ -394,17 +404,12 @@ export function VariantBuilder({
                             </Label>
                             {option.values.length > 0 && (
                               <Button
+                                type="button"
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => {
-                                  onOptionsChange(
-                                    options.map((opt) =>
-                                      opt.id === option.id
-                                        ? { ...opt, values: [] }
-                                        : opt
-                                    )
-                                  );
-                                }}
+                                onClick={() =>
+                                  setPendingConfirm({ kind: "clear-values", optionId: option.id })
+                                }
                                 className="h-auto py-1 px-2 text-xs"
                               >
                                 Clear all
@@ -429,12 +434,14 @@ export function VariantBuilder({
                                 >
                                   <span>{value[language]}</span>
                                   <button
+                                    type="button"
+                                    aria-label={`Remove value ${value[language]}`}
                                     onClick={() =>
                                       removeOptionValue(option.id, idx)
                                     }
                                     className="ml-2 hover:text-destructive transition-colors"
                                   >
-                                    <X className="h-3 w-3" />
+                                    <X className="h-3 w-3" aria-hidden="true" />
                                   </button>
                                 </Badge>
                               ))}
@@ -452,6 +459,7 @@ export function VariantBuilder({
                           <div className="space-y-2">
                             <div className="space-y-1.5">
                               <Input
+                                aria-label={`New value for ${option.name[language]}`}
                                 placeholder={
                                   language === "en"
                                     ? "e.g., Blue, Large"
@@ -485,6 +493,7 @@ export function VariantBuilder({
                                 Translation ({language === "en" ? "MN" : "EN"})
                               </Label>
                               <Input
+                                aria-label={`New value translation for ${option.name[language]}`}
                                 placeholder={
                                   language === "en"
                                     ? "жнь: Цэнхэр, Том"
@@ -523,6 +532,7 @@ export function VariantBuilder({
                               Press Enter to add quickly
                             </p>
                             <Button
+                              type="button"
                               onClick={() => addOptionValue(option.id)}
                               size="sm"
                               disabled={!isOptionValueValid(option.id)}
@@ -578,7 +588,12 @@ export function VariantBuilder({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {variants.map((variant) => (
+                  {variants.map((variant, variantIndex) => {
+                    const skuError = errors[`variant.${variantIndex}.sku`];
+                    const priceError = errors[`variant.${variantIndex}.price`];
+                    const stockError = errors[`variant.${variantIndex}.inventory`];
+                    const variantLabel = variant.title?.[language] || variant.sku || `variant ${variantIndex + 1}`;
+                    return (
                     <TableRow key={variant.id}>
                       <TableCell>
                         <SingleImageUpload
@@ -609,6 +624,10 @@ export function VariantBuilder({
                       </TableCell>
                       <TableCell>
                         <Input
+                          id={`variant-${variantIndex}-sku`}
+                          aria-label={`SKU for ${variantLabel}`}
+                          aria-invalid={skuError ? true : undefined}
+                          aria-describedby={skuError ? `variant-${variantIndex}-sku-error` : undefined}
                           value={variant.sku}
                           onChange={(e) =>
                             updateVariant(variant.id, { sku: e.target.value })
@@ -616,6 +635,11 @@ export function VariantBuilder({
                           className="h-9 text-sm font-mono"
                           placeholder="SKU"
                         />
+                        {skuError && (
+                          <p id={`variant-${variantIndex}-sku-error`} role="alert" className="text-destructive mt-1 text-xs">
+                            {skuError}
+                          </p>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="relative">
@@ -623,6 +647,10 @@ export function VariantBuilder({
                             ₮
                           </span>
                           <Input
+                            id={`variant-${variantIndex}-price`}
+                            aria-label={`Price for ${variantLabel}`}
+                            aria-invalid={priceError ? true : undefined}
+                            aria-describedby={priceError ? `variant-${variantIndex}-price-error` : undefined}
                             type="number"
                             step="0.01"
                             min="0"
@@ -636,6 +664,11 @@ export function VariantBuilder({
                             placeholder="0.00"
                           />
                         </div>
+                        {priceError && (
+                          <p id={`variant-${variantIndex}-price-error`} role="alert" className="text-destructive mt-1 text-xs">
+                            {priceError}
+                          </p>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="relative">
@@ -643,6 +676,7 @@ export function VariantBuilder({
                             ₮
                           </span>
                           <Input
+                            aria-label={`Compare-at price for ${variantLabel}`}
                             type="number"
                             step="0.01"
                             min="0"
@@ -661,8 +695,13 @@ export function VariantBuilder({
                       </TableCell>
                       <TableCell>
                         <Input
+                          id={`variant-${variantIndex}-inventory`}
+                          aria-label={`Stock for ${variantLabel}`}
+                          aria-invalid={stockError ? true : undefined}
+                          aria-describedby={stockError ? `variant-${variantIndex}-inventory-error` : undefined}
                           type="number"
                           min="0"
+                          step="1"
                           value={variant.inventory}
                           onChange={(e) =>
                             updateVariant(variant.id, {
@@ -672,9 +711,15 @@ export function VariantBuilder({
                           className="h-9 text-sm"
                           placeholder="0"
                         />
+                        {stockError && (
+                          <p id={`variant-${variantIndex}-inventory-error`} role="alert" className="text-destructive mt-1 text-xs">
+                            {stockError}
+                          </p>
+                        )}
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -711,6 +756,29 @@ export function VariantBuilder({
           </Alert>
         )
       )}
+
+      <ConfirmDialog
+        open={pendingConfirm !== null}
+        onOpenChange={(open) => !open && setPendingConfirm(null)}
+        title={pendingConfirm?.kind === "delete-option" ? "Delete this option?" : "Remove all values?"}
+        description={
+          pendingConfirm?.kind === "delete-option"
+            ? "The option and all its values are removed, and the variants built from it are regenerated. SKUs, prices and stock you entered for those variants are lost."
+            : "All values of this option are removed. The variants built from it are regenerated and the prices and stock you entered for them are lost."
+        }
+        confirmLabel={pendingConfirm?.kind === "delete-option" ? "Delete option" : "Remove values"}
+        onConfirm={() => {
+          if (!pendingConfirm) return;
+          if (pendingConfirm.kind === "delete-option") removeOption(pendingConfirm.optionId);
+          else
+            onOptionsChange(
+              options.map((opt) =>
+                opt.id === pendingConfirm.optionId ? { ...opt, values: [] } : opt
+              )
+            );
+          setPendingConfirm(null);
+        }}
+      />
     </div>
   );
 }
