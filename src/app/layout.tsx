@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Manrope } from "next/font/google";
 import "./globals.css";
 import { ApolloProvider } from '@/components/providers/apollo-provider'
 import { ThemeProvider } from '@/context/theme-provider'
 import { AuthProvider } from '@/context/auth-provider'
 import { Toaster } from '@/components/ui/sonner'
+import { themeInitScript } from '@/lib/theme-script'
 
-const inter = Inter({ subsets: ["latin"] });
+const manrope = Manrope({
+  subsets: ["latin", "cyrillic"],
+  variable: "--font-manrope",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Mongolec Admin",
@@ -19,16 +24,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+    <html lang="en" className={manrope.variable} suppressHydrationWarning>
+      <head>
+        {/* Applies light/dark before the first paint (no flash of the wrong theme). */}
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
+      <body>
         <ThemeProvider>
           <ApolloProvider>
             <AuthProvider>
               {children}
             </AuthProvider>
           </ApolloProvider>
+          <Toaster position="top-right" />
         </ThemeProvider>
-        <Toaster position="top-right" />
       </body>
     </html>
   );
