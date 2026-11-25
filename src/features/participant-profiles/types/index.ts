@@ -28,22 +28,3 @@ export interface ParticipantProfile {
   createdAt: string
   updatedAt: string
 }
-
-export const riderTierConfig: Record<RiderTier, { label: string; className: string }> = {
-  RIDER: {
-    label: 'Rider',
-    className: 'bg-slate-100 text-slate-700',
-  },
-  RETURNING: {
-    label: 'Returning',
-    className: 'bg-sky-100 text-sky-700',
-  },
-  VETERAN: {
-    label: 'Veteran',
-    className: 'bg-violet-100 text-violet-700',
-  },
-  LEGEND: {
-    label: 'Legend',
-    className: 'bg-amber-100 text-amber-700',
-  },
-}
