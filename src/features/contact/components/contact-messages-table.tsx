@@ -6,7 +6,6 @@ import Link from 'next/link'
 import { useMutation } from '@apollo/client/react'
 import { toast } from 'sonner'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -17,16 +16,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { DataTable, createCreatedAtColumn } from '@/components/data-table'
-import type { ContactMessage } from '../types'
+import { InitialsAvatar, StatusBadge } from '@/components/admin'
+import type { ContactMessage, ContactMessageStatus } from '../types'
 import { contactMessageStatusConfig } from '../types'
 import { UPDATE_CONTACT_MESSAGE_STATUS } from '@/graphql/mutations/contact'
 
-
-function avatarColor(name: string) {
-  const p = ['bg-rose-100 text-rose-700','bg-orange-100 text-orange-700','bg-amber-100 text-amber-700','bg-lime-100 text-lime-700','bg-teal-100 text-teal-700','bg-sky-100 text-sky-700','bg-violet-100 text-violet-700','bg-pink-100 text-pink-700']
-  let h = 0; for (const c of name) h = (h * 31 + c.charCodeAt(0)) & 0xffff
-  return p[h % p.length]
-}
 
 function getStatusIcon(status: string) {
   if (status === 'NEW') return Mail
@@ -50,15 +44,20 @@ function ActionsCell({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8">
-          <MoreHorizontal className="h-4 w-4" />
-          <span className="sr-only">Open menu</span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          aria-label={`Actions for message from ${message.name}`}
+        >
+          <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
         <DropdownMenuItem asChild>
           <Link href={`/contact/${message.id}`} className="flex items-center gap-2">
-            <Eye className="h-4 w-4" />
+            <Eye className="h-4 w-4" aria-hidden="true" />
             View message
           </Link>
         </DropdownMenuItem>
@@ -66,7 +65,7 @@ function ActionsCell({
         <DropdownMenuLabel className="text-xs font-medium text-muted-foreground px-2 py-1">
           Mark as
         </DropdownMenuLabel>
-        {(Object.entries(contactMessageStatusConfig) as [keyof typeof contactMessageStatusConfig, typeof contactMessageStatusConfig[keyof typeof contactMessageStatusConfig]][]).map(([key, config]) => {
+        {(Object.entries(contactMessageStatusConfig) as [ContactMessageStatus, { label: string }][]).map(([key, config]) => {
           const Icon = statusIcons[key]
           const isCurrent = message.status === key
           return (
@@ -76,10 +75,10 @@ function ActionsCell({
               disabled={isCurrent}
               className="flex items-center gap-2"
             >
-              <Icon className="h-4 w-4" />
+              <Icon className="h-4 w-4" aria-hidden="true" />
               {config.label}
               {isCurrent && (
-                <CheckCircle2 className="h-3 w-3 ml-auto text-muted-foreground" />
+                <CheckCircle2 className="text-muted-foreground ml-auto h-3 w-3" aria-label="Current status" />
               )}
             </DropdownMenuItem>
           )
@@ -98,18 +97,13 @@ function buildColumns(
       header: 'Sender',
       cell: ({ row }) => {
         const message = row.original
-        const colorClass = avatarColor(message.name)
-        const initial = message.name[0]?.toUpperCase() ?? '?'
+        const isUnread = message.status === 'NEW'
         return (
           <div className="flex items-center gap-3">
-            <div
-              className={`h-9 w-9 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0 ${colorClass}`}
-            >
-              {initial}
-            </div>
+            <InitialsAvatar name={message.name} size={36} />
             <div className="min-w-0">
-              <div className="font-medium text-sm truncate">{message.name}</div>
-              <div className="text-xs text-muted-foreground font-mono truncate">{message.email}</div>
+              <div className={`truncate text-sm ${isUnread ? 'font-semibold' : 'font-normal'}`}>{message.name}</div>
+              <div className="text-muted-foreground truncate text-xs">{message.email}</div>
             </div>
           </div>
         )
@@ -122,7 +116,9 @@ function buildColumns(
         const message = row.original
         return (
           <div className="max-w-[200px]">
-            <div className="font-medium text-sm truncate">{message.subject}</div>
+            <div className={`truncate text-sm ${message.status === 'NEW' ? 'font-semibold' : 'font-normal'}`}>
+              {message.subject}
+            </div>
             <div className="text-xs text-muted-foreground truncate">
               {message.message?.slice(0, 80)}
             </div>
@@ -138,10 +134,10 @@ function buildColumns(
         const conf = contactMessageStatusConfig[status as keyof typeof contactMessageStatusConfig]
         const Icon = getStatusIcon(status)
         return (
-          <Badge variant={conf.variant} className={`${conf.color} gap-1`}>
-            <Icon className="h-3 w-3" />
+          <StatusBadge tone={conf.tone}>
+            <Icon className="h-3 w-3" aria-hidden="true" />
             {conf.label}
-          </Badge>
+          </StatusBadge>
         )
       },
     },
@@ -169,7 +165,7 @@ export function ContactMessagesTable({
 }: ContactMessagesTableProps) {
   const [updateStatus] = useMutation(UPDATE_CONTACT_MESSAGE_STATUS, {
     onCompleted: () => {
-      toast.success('Status updated successfully')
+      toast.success('Status updated')
       onActionComplete?.()
     },
     onError: error => toast.error(error.message),
