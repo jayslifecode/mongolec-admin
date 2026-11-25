@@ -5,7 +5,7 @@ export const APPROVE_APPLICATION = gql`
     approveApplication(id: $id, notes: $notes) {
       id
       status
-      adminNotes
+      reviewNotes
       reviewedBy
       reviewedAt
       updatedAt
@@ -18,7 +18,7 @@ export const REJECT_APPLICATION = gql`
     rejectApplication(id: $id, reason: $reason) {
       id
       status
-      adminNotes
+      reviewNotes
       reviewedBy
       reviewedAt
       updatedAt
@@ -31,7 +31,7 @@ export const WAITLIST_APPLICATION = gql`
     waitlistApplication(id: $id, notes: $notes) {
       id
       status
-      adminNotes
+      reviewNotes
       reviewedBy
       reviewedAt
       updatedAt
@@ -56,7 +56,7 @@ export const CANCEL_APPLICATION = gql`
     cancelApplication(id: $id, reason: $reason) {
       id
       status
-      adminNotes
+      reviewNotes
       reviewedBy
       reviewedAt
       updatedAt
@@ -65,11 +65,11 @@ export const CANCEL_APPLICATION = gql`
 `
 
 export const CHANGE_APPLICATION_STATUS = gql`
-  mutation ChangeApplicationStatus($id: ID!, $status: ApplicationStatus!, $notes: String) {
+  mutation ChangeApplicationStatus($id: ID!, $status: ApplicationStatus!, $notes: JSON) {
     changeApplicationStatus(id: $id, status: $status, notes: $notes) {
       id
       status
-      adminNotes
+      reviewNotes
       reviewedBy
       reviewedAt
       updatedAt
@@ -85,5 +85,12 @@ export const CHANGE_APPLICATION_PAYMENT_STATUS = gql`
       fullyPaid
       updatedAt
     }
+  }
+`
+
+/** Makes sure an approved application has its private acceptance-letter link; returns the URL. */
+export const ENSURE_ACCEPTANCE_LINK = gql`
+  mutation EnsureAcceptanceLink($applicationId: ID!) {
+    ensureAcceptanceLink(applicationId: $applicationId)
   }
 `

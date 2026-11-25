@@ -25,6 +25,7 @@ import {
   safeHttpUrl,
 } from '@/features/applications/lib/format-response'
 import { PageHeader, FormSection, DetailField, EmptyState } from '@/components/admin'
+import { AcceptancePanel, type AcceptanceDetail } from '@/features/applications/components/acceptance-panel'
 
 interface ApplicationDetail {
   id: string
@@ -75,6 +76,8 @@ interface ApplicationDetail {
   reviewedAt?: string
   createdAt: string
   updatedAt: string
+  acceptanceUrl?: string | null
+  acceptance?: AcceptanceDetail | null
 }
 
 interface GetApplicationQuery {
@@ -175,9 +178,14 @@ export default function ApplicationDetailPage() {
               <WaitlistButton applicationId={application.id} status={application.status} onActionComplete={() => refetch()} />
             </>
           )}
-          {application.status === 'APPROVED' && (
-            <ConfirmButton applicationId={application.id} status={application.status} onActionComplete={() => refetch()} />
-          )}
+          {application.status === 'APPROVED' &&
+            (application.acceptance ? (
+              <ConfirmButton applicationId={application.id} status={application.status} onActionComplete={() => refetch()} />
+            ) : (
+              <span className="inline-flex items-center text-xs text-muted-foreground">
+                Confirm unlocks when the acceptance letter arrives
+              </span>
+            ))}
           <UpdatePaymentStatusButton
             applicationId={application.id}
             status={application.status}
@@ -186,6 +194,14 @@ export default function ApplicationDetailPage() {
           />
         </div>
       </FormSection>
+
+      <AcceptancePanel
+        applicationId={application.id}
+        status={application.status}
+        acceptanceUrl={application.acceptanceUrl}
+        acceptance={application.acceptance}
+        onLinkCreated={() => refetch()}
+      />
 
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
