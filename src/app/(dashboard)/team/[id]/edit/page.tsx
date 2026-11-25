@@ -32,10 +32,10 @@ export default function TeamMemberEditPage() {
 
   if (error || !member) {
     return (
-      <div className="space-y-4 max-w-4xl mx-auto">
-        <PageHeader title="Edit Team Member" backHref="/team" />
+      <div className="mx-auto max-w-4xl space-y-6">
+        <PageHeader title="Edit team member" backHref="/team" />
         <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
+          <AlertCircle className="h-4 w-4" aria-hidden="true" />
           <AlertDescription>{error?.message || 'Team member not found'}</AlertDescription>
         </Alert>
       </div>
@@ -43,7 +43,7 @@ export default function TeamMemberEditPage() {
   }
 
   return (
-    <div className="space-y-5 max-w-4xl mx-auto">
+    <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader
         title={member.name}
         description="Update team member information"

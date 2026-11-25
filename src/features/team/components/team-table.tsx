@@ -7,7 +7,6 @@ import Link from 'next/link'
 import { useMutation } from '@apollo/client/react'
 import { toast } from 'sonner'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -23,18 +22,14 @@ import {
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
+  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { DataTable, createCreatedAtColumn } from '@/components/data-table'
+import { InitialsAvatar, StatusBadge } from '@/components/admin'
 import type { TeamMember } from '../types'
 import { DELETE_TEAM_MEMBER } from '@/graphql/mutations/team'
-
-function avatarColor(name: string) {
-  const p = ['bg-rose-100 text-rose-700','bg-orange-100 text-orange-700','bg-amber-100 text-amber-700','bg-lime-100 text-lime-700','bg-teal-100 text-teal-700','bg-sky-100 text-sky-700','bg-violet-100 text-violet-700','bg-pink-100 text-pink-700']
-  let h = 0; for (const c of name) h = (h * 31 + c.charCodeAt(0)) & 0xffff
-  return p[h % p.length]
-}
 
 function ActionsCell({
   member,
@@ -46,8 +41,13 @@ function ActionsCell({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-8 w-8 p-0">
-          <MoreHorizontal className="h-4 w-4" />
+        <Button
+          type="button"
+          variant="ghost"
+          className="h-8 w-8 p-0"
+          aria-label={`Actions for ${member.name}`}
+        >
+          <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
@@ -66,7 +66,7 @@ function ActionsCell({
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="text-red-600" onClick={() => onDeleteClick(member.id)}>
+        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => onDeleteClick(member.id)}>
           <Trash2 className="h-4 w-4 mr-2" />
           Delete
         </DropdownMenuItem>
@@ -82,23 +82,9 @@ function buildColumns(onDeleteClick: (id: string) => void): ColumnDef<TeamMember
       header: 'Member',
       cell: ({ row }) => {
         const member = row.original
-        const colorClass = avatarColor(member.name)
-        const initial = member.name[0]?.toUpperCase() ?? '?'
         return (
           <div className="flex items-center gap-3">
-            {member.photo ? (
-              <img
-                src={member.photo}
-                alt={member.name}
-                className="h-10 w-10 rounded-full object-cover border flex-shrink-0"
-              />
-            ) : (
-              <div
-                className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0 ${colorClass}`}
-              >
-                {initial}
-              </div>
-            )}
+            <InitialsAvatar name={member.name} src={member.photo} size={40} />
             <div className="min-w-0 flex-1">
               <div className="font-medium truncate">{member.name}</div>
               <div className="text-xs text-muted-foreground truncate">{member.role}</div>
@@ -108,29 +94,14 @@ function buildColumns(onDeleteClick: (id: string) => void): ColumnDef<TeamMember
       },
     },
     {
-      accessorKey: 'displayOrder',
-      header: 'Order',
-      cell: ({ getValue }) => (
-        <span className="text-sm font-mono text-muted-foreground">#{getValue<number>()}</span>
-      ),
-    },
-    {
       accessorKey: 'isActive',
       header: 'Status',
-      cell: ({ getValue }) => {
-        const active = getValue<boolean>()
-        return (
-          <Badge
-            variant={active ? 'default' : 'secondary'}
-            className="gap-1"
-          >
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-emerald-400' : 'bg-muted-foreground'}`}
-            />
-            {active ? 'Active' : 'Inactive'}
-          </Badge>
-        )
-      },
+      cell: ({ getValue }) =>
+        getValue<boolean>() ? (
+          <StatusBadge tone="success">Active</StatusBadge>
+        ) : (
+          <StatusBadge>Inactive</StatusBadge>
+        ),
     },
     createCreatedAtColumn<TeamMember>(),
     {
@@ -153,7 +124,7 @@ export function TeamTable({ members, loading, onActionComplete }: TeamTableProps
 
   const [deleteMember] = useMutation(DELETE_TEAM_MEMBER, {
     onCompleted: () => {
-      toast.success('Team member deleted successfully')
+      toast.success('Team member deleted')
       setDeleteDialogOpen(false)
       setSelectedId(null)
       onActionComplete?.()
@@ -170,7 +141,7 @@ export function TeamTable({ members, loading, onActionComplete }: TeamTableProps
     if (selectedId) deleteMember({ variables: { id: selectedId } })
   }
 
-  const sortedMembers = [...members].sort((a, b) => a.displayOrder - b.displayOrder)
+  const sortedMembers = [...members].sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name))
   const columns = buildColumns(handleDeleteClick)
 
   return (
@@ -187,13 +158,15 @@ export function TeamTable({ members, loading, onActionComplete }: TeamTableProps
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Team Member</AlertDialogTitle>
+            <AlertDialogTitle>Delete team member</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete this team member? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>

@@ -7,7 +7,6 @@ import Link from 'next/link'
 import { useMutation } from '@apollo/client/react'
 import { toast } from 'sonner'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -23,10 +22,12 @@ import {
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
+  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { DataTable, createCreatedAtColumn } from '@/components/data-table'
+import { StatusBadge } from '@/components/admin'
 import type { ParkPartnership } from '../types'
 import { partnershipStatusConfig } from '../types'
 import { DELETE_PARK_PARTNERSHIP, CHANGE_PARTNERSHIP_STATUS } from '@/graphql/mutations/rangers'
@@ -50,8 +51,13 @@ function ActionsCell({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-8 w-8 p-0">
-          <MoreHorizontal className="h-4 w-4" />
+        <Button
+          type="button"
+          variant="ghost"
+          className="h-8 w-8 p-0"
+          aria-label={`Actions for ${getDisplayName(ranger.parkName)}`}
+        >
+          <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
@@ -77,7 +83,7 @@ function ActionsCell({
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="text-red-600" onClick={() => onDeleteClick(ranger.id)}>
+        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => onDeleteClick(ranger.id)}>
           <Trash2 className="h-4 w-4 mr-2" />
           Delete
         </DropdownMenuItem>
@@ -93,15 +99,15 @@ function buildColumns(
   return [
     {
       accessorKey: 'parkName',
-      header: 'Partnership',
+      header: 'Park partner',
       cell: ({ row }) => {
         const ranger = row.original
         const partnershipTypeLabel = getDisplayName(ranger.partnershipType)
         const subtextParts = [ranger.country, partnershipTypeLabel].filter(Boolean)
         return (
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-teal-100 bg-teal-50">
-              <MapPin className="h-4 w-4 text-teal-600" />
+            <div className="border-border bg-muted flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border">
+              <MapPin className="text-muted-foreground h-4 w-4" aria-hidden="true" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="font-medium truncate text-sm">
@@ -122,7 +128,7 @@ function buildColumns(
       header: 'Rangers',
       cell: ({ getValue }) => (
         <div className="flex items-center gap-1.5 text-sm">
-          <Shield className="h-3.5 w-3.5 text-muted-foreground" />
+          <Shield className="text-muted-foreground h-3.5 w-3.5" aria-hidden="true" />
           <span className="font-medium">{getValue<number>() || 0}</span>
           <span className="text-muted-foreground">rangers</span>
         </div>
@@ -134,11 +140,7 @@ function buildColumns(
       cell: ({ getValue }) => {
         const status = getValue<string>()
         const conf = partnershipStatusConfig[status as keyof typeof partnershipStatusConfig]
-        return (
-          <Badge variant={conf.variant} className={conf.color}>
-            {conf.label}
-          </Badge>
-        )
+        return <StatusBadge tone={conf.tone}>{conf.label}</StatusBadge>
       },
     },
     createCreatedAtColumn<ParkPartnership>({ title: 'Since' }),
@@ -168,7 +170,7 @@ export function RangersTable({ rangers, loading, onActionComplete }: RangersTabl
 
   const [deletePartnership] = useMutation(DELETE_PARK_PARTNERSHIP, {
     onCompleted: () => {
-      toast.success('Partnership deleted successfully')
+      toast.success('Park partner deleted')
       setDeleteDialogOpen(false)
       setSelectedId(null)
       onActionComplete?.()
@@ -178,7 +180,7 @@ export function RangersTable({ rangers, loading, onActionComplete }: RangersTabl
 
   const [updateStatus] = useMutation(CHANGE_PARTNERSHIP_STATUS, {
     onCompleted: () => {
-      toast.success('Status updated successfully')
+      toast.success('Status updated')
       onActionComplete?.()
     },
     onError: error => toast.error(error.message),
@@ -206,20 +208,21 @@ export function RangersTable({ rangers, loading, onActionComplete }: RangersTabl
         columns={columns}
         loading={loading}
         showIndexColumn={false}
-        emptyMessage="No rangers found."
-        toolbarConfig={{ searchPlaceholder: 'Search rangers...' }}
+        emptyMessage="No park partners found."
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Partnership</AlertDialogTitle>
+            <AlertDialogTitle>Delete park partner</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this partnership? This action cannot be undone.
+              Are you sure you want to delete this park partner? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>

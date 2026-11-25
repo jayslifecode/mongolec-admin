@@ -5,10 +5,10 @@ import { PageHeader } from '@/components/admin'
 
 export default function CreateParticipantProfilePage() {
   return (
-    <div className="space-y-5 max-w-4xl mx-auto">
+    <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader
-        title="Add Participant Profile"
-        description="Add a new participant profile"
+        title="Add rider"
+        description="Add a rider to the Rally for Rangers listing"
         backHref="/participant-profiles"
       />
       <ParticipantProfileForm mode="create" />

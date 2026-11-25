@@ -12,23 +12,11 @@ export interface ContactMessage {
 
 export type ContactMessageStatus = 'NEW' | 'READ' | 'REPLIED'
 
-export const contactMessageStatusConfig = {
-  NEW: {
-    label: 'New',
-    color: 'bg-red-200 text-red-800 border-red-300',
-    variant: 'outline' as const,
-    icon: 'Mail',
-  },
-  READ: {
-    label: 'Read',
-    color: 'bg-blue-200 text-blue-800 border-blue-300',
-    variant: 'outline' as const,
-    icon: 'MailOpen',
-  },
-  REPLIED: {
-    label: 'Replied',
-    color: 'bg-green-500 text-white border-green-500',
-    variant: 'default' as const,
-    icon: 'Check',
-  },
-} as const
+export const contactMessageStatusConfig: Record<
+  ContactMessageStatus,
+  { label: string; tone: 'neutral' | 'success' | 'warning' }
+> = {
+  NEW: { label: 'New', tone: 'warning' },
+  READ: { label: 'Read', tone: 'neutral' },
+  REPLIED: { label: 'Replied', tone: 'success' },
+}

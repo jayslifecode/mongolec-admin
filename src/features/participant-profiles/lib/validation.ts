@@ -1,15 +1,19 @@
 import { z } from 'zod'
+import { optionalUrl, slug } from '@/lib/validation/rules'
 
 export const participantFormSchema = z.object({
   firstName: z.string().trim().min(1, 'First name is required'),
   lastName: z.string().trim().min(1, 'Last name is required'),
   // The featured photo every rider is shown by (round 4): required.
-  photo: z.string().trim().min(1, 'A featured photo is required'),
+  photo: z.string().trim().min(1, 'A featured photo is required').pipe(optionalUrl),
   country: z.string().trim().min(1, 'Country is required'),
   bio: z.string().trim().optional(),
-  displayOrder: z.number().int().min(0, 'Must be 0 or greater'),
+  displayOrder: z
+    .number({ message: 'Enter a whole number' })
+    .int('Enter a whole number')
+    .min(0, 'Must be 0 or greater'),
   isActive: z.boolean(),
-  slug: z.string().trim().optional(),
+  slug: z.union([z.literal(''), slug]),
   honoraryTitle: z.string().trim().max(120, 'Keep it under 120 characters').optional(),
   rallyIds: z.array(z.string().min(1)),
 })
