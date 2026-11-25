@@ -263,7 +263,7 @@ export const createEmailColumn = <T>(
   cell: ({ row }) => {
     const email = row.getValue(accessorKey) as string
     return email
-      ? React.createElement('a', { href: `mailto:${email}`, className: 'text-blue-600 hover:underline' }, email)
+      ? React.createElement('a', { href: `mailto:${email}`, className: 'text-primary hover:underline' }, email)
       : React.createElement('span', { className: 'text-muted-foreground' }, '-')
   },
   enableSorting: options?.sortable !== false,
@@ -377,7 +377,7 @@ export const createBooleanColumn = <T>(
         'div',
         { className: 'flex items-center justify-center' },
         React.createElement('div', {
-          className: `h-2 w-2 rounded-full ${value ? 'bg-green-500' : 'bg-gray-300'}`,
+          className: `h-2 w-2 rounded-full ${value ? 'bg-success' : 'bg-muted-foreground/40'}`,
         })
       )
     }
@@ -481,7 +481,7 @@ export const createActionsColumn = <T>(
   meta: {
     className: `${options?.width ? `w-[${options.width}]` : 'w-[60px]'} ${
       (options?.sticky ?? true)
-        ? 'px-0 text-center sticky end-0 z-10 [&:is(th)]:z-30 shadow-[inset_1px_0_0_0_theme(colors.border)] [&:is(th)]:bg-gray-50 dark:[&:is(th)]:bg-gray-900 [&:is(td)]:bg-background'
+        ? 'px-0 text-center sticky end-0 z-10 [&:is(th)]:z-30 shadow-[inset_1px_0_0_0_theme(colors.border)] [&:is(th)]:bg-muted [&:is(td)]:bg-background'
         : ''
     }`,
   },

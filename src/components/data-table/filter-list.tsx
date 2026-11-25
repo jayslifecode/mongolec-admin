@@ -318,7 +318,7 @@ export function DataTableFilterList<TData>({
           size="sm"
           variant="ghost"
           onClick={clearAllFilters}
-          className="h-8 px-2 text-red-500 hover:bg-red-100 hover:text-red-500"
+          className="h-8 px-2 text-danger hover:bg-danger-muted hover:text-danger"
         >
           <Trash2 className="mr-2 h-4 w-4" />
           Clear
@@ -435,7 +435,7 @@ export function DataTableFilterSummary<TData>({
           table.resetColumnFilters()
           onClearAllVirtualFilters?.()
         }}
-        className="h-6 px-2 text-xs text-red-500 hover:bg-red-50 hover:text-red-600"
+        className="h-6 px-2 text-xs text-danger hover:bg-danger-muted hover:text-danger"
       >
         <Trash2 />
         Clear
