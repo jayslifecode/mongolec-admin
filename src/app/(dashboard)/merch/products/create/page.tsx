@@ -8,7 +8,7 @@ export default function MerchProductCreatePage() {
   const [language, setLanguage] = useState<'en' | 'mn'>('en')
 
   return (
-    <div className="space-y-5 max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-4xl mx-auto">
       <PageHeader
         title="Create Product"
         description="Add a new product to your merchandise store"
@@ -16,7 +16,7 @@ export default function MerchProductCreatePage() {
         lang={language}
         onLangChange={setLanguage}
       />
-      <MerchProductForm language={language} />
+      <MerchProductForm language={language} onLanguageChange={setLanguage} />
     </div>
   )
 }

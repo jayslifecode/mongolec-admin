@@ -1,3 +1,5 @@
+import type { StatusTone } from '@/lib/ui/status-tones'
+
 export interface MerchProduct {
   id: string
   name: string | { en: string; mn: string }
@@ -63,29 +65,26 @@ export interface MerchCategory {
 }
 
 export const merchStatusConfig = {
-  DRAFT: {
-    label: 'Draft',
-    color: 'bg-gray-200 text-gray-800 border-gray-300',
-    variant: 'outline' as const,
-  },
-  ACTIVE: {
-    label: 'Active',
-    color: 'bg-green-500 text-white border-green-500',
-    variant: 'default' as const,
-  },
-  INACTIVE: {
-    label: 'Inactive',
-    color: 'bg-gray-500 text-white border-gray-500',
-    variant: 'secondary' as const,
-  },
-  OUT_OF_STOCK: {
-    label: 'Out of Stock',
-    color: 'bg-red-500 text-white border-red-500',
-    variant: 'destructive' as const,
-  },
-  DISCONTINUED: {
-    label: 'Discontinued',
-    color: 'bg-red-200 text-red-800 border-red-300',
-    variant: 'destructive' as const,
-  },
-} as const
+  DRAFT: { label: 'Draft', tone: 'neutral' },
+  ACTIVE: { label: 'Active', tone: 'success' },
+  INACTIVE: { label: 'Inactive', tone: 'neutral' },
+  OUT_OF_STOCK: { label: 'Out of Stock', tone: 'danger' },
+  DISCONTINUED: { label: 'Discontinued', tone: 'neutral' },
+} as const satisfies Record<MerchProduct['status'], { label: string; tone: StatusTone }>
+
+export type StockLevel = 'in' | 'low' | 'out'
+
+/** Stock tones: In stock success, Low stock warning, Out of stock danger. */
+export const stockLevelConfig = {
+  in: { label: 'In stock', tone: 'success' },
+  low: { label: 'Low stock', tone: 'warning' },
+  out: { label: 'Out of stock', tone: 'danger' },
+} as const satisfies Record<StockLevel, { label: string; tone: StatusTone }>
+
+export const LOW_STOCK_THRESHOLD = 10
+
+export function getStockLevel(inventory: number, minStock?: number | null): StockLevel {
+  if (inventory <= 0) return 'out'
+  const threshold = minStock && minStock > 0 ? minStock : LOW_STOCK_THRESHOLD
+  return inventory <= threshold ? 'low' : 'in'
+}

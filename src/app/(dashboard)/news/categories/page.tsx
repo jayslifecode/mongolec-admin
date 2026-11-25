@@ -1,43 +1,39 @@
-import { Metadata } from 'next'
-import { NewsCategoriesTable } from '@/features/news/components/news-categories-table'
-import { Button } from '@/components/ui/button'
-import { Plus, ArrowLeft } from 'lucide-react'
-import Link from 'next/link'
+'use client'
 
-export const metadata: Metadata = {
-  title: 'News Categories',
-  description: 'Manage news categories',
-}
+import { useQuery } from '@apollo/client/react'
+import { Plus } from 'lucide-react'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { NewsCategoriesTable, type NewsCategoryRow } from '@/features/news/components/news-categories-table'
+import { GET_NEWS_CATEGORIES } from '@/graphql/queries/news'
+import { PageHeader } from '@/components/admin'
+import { QueryErrorState } from '@/components/query-error-state'
 
 export default function NewsCategoriesPage() {
-  return (
-    <div className="container mx-auto py-6">
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <Button variant="ghost" size="icon" asChild>
-                <Link href="/news">
-                  <ArrowLeft className="h-4 w-4" />
-                </Link>
-              </Button>
-              <h1 className="text-3xl font-bold tracking-tight">News Categories</h1>
-            </div>
-            <p className="text-muted-foreground ml-11">
-              Organize your news articles with categories
-            </p>
-          </div>
+  const { data, loading, error, refetch } = useQuery<{ getNewsCategories: NewsCategoryRow[] }>(GET_NEWS_CATEGORIES, {
+    variables: { language: 'en' },
+  })
 
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="News Categories"
+        description="Organize your news articles with categories"
+        backHref="/news"
+        actions={
           <Button asChild>
             <Link href="/news/categories/create">
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
               Create Category
             </Link>
           </Button>
-        </div>
-
-        <NewsCategoriesTable />
-      </div>
+        }
+      />
+      {error ? (
+        <QueryErrorState title="Couldn't load categories" message={error.message} onRetry={() => void refetch()} />
+      ) : (
+        <NewsCategoriesTable categories={data?.getNewsCategories ?? []} loading={loading} />
+      )}
     </div>
   )
 }

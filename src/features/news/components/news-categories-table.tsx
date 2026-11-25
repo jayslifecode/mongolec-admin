@@ -1,10 +1,12 @@
 'use client'
 
+import { useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Edit, Trash2, MoreHorizontal } from 'lucide-react'
 import Link from 'next/link'
+import { useMutation } from '@apollo/client/react'
+import { toast } from 'sonner'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -15,67 +17,24 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { DataTable, createCreatedAtColumn } from '@/components/data-table'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { DELETE_NEWS_CATEGORY } from '@/graphql/mutations/news'
 
-interface NewsCategory {
+export interface NewsCategoryRow {
   id: string
   name: string
   slug: string
-  color: string
-  description?: string
-  articleCount: number
+  color?: string | null
+  description?: string | null
   createdAt: string
 }
 
-const mockCategories: NewsCategory[] = [
-  {
-    id: '1',
-    name: 'Technology',
-    slug: 'technology',
-    color: '#3b82f6',
-    description: 'Latest tech news and updates',
-    articleCount: 42,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    name: 'Sports',
-    slug: 'sports',
-    color: '#10b981',
-    description: 'Sports news and scores',
-    articleCount: 35,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: '3',
-    name: 'Politics',
-    slug: 'politics',
-    color: '#ef4444',
-    description: 'Political news and analysis',
-    articleCount: 28,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: '4',
-    name: 'Business',
-    slug: 'business',
-    color: '#f59e0b',
-    description: 'Business and finance news',
-    articleCount: 31,
-    createdAt: new Date().toISOString(),
-  },
-]
-
-function ActionsCell({ category }: { category: NewsCategory }) {
-  const handleDelete = () => {
-    // TODO: Implement delete functionality
-  }
-
+function ActionsCell({ category, onDelete }: { category: NewsCategoryRow; onDelete: (c: NewsCategoryRow) => void }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8">
-          <MoreHorizontal className="h-4 w-4" />
-          <span className="sr-only">Open menu</span>
+        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={`Actions for ${category.name}`}>
+          <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
@@ -87,7 +46,7 @@ function ActionsCell({ category }: { category: NewsCategory }) {
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleDelete} className="text-destructive">
+        <DropdownMenuItem onClick={() => onDelete(category)} className="text-destructive">
           <Trash2 className="mr-2 h-4 w-4" />
           Delete
         </DropdownMenuItem>
@@ -96,61 +55,82 @@ function ActionsCell({ category }: { category: NewsCategory }) {
   )
 }
 
-const columns: ColumnDef<NewsCategory>[] = [
-  {
-    accessorKey: 'name',
-    header: 'Category',
-    cell: ({ row }) => {
-      const category = row.original
-      return (
-        <Badge
-          variant="outline"
-          style={{ borderColor: category.color, color: category.color }}
-        >
-          {category.name}
-        </Badge>
-      )
+function buildColumns(onDelete: (c: NewsCategoryRow) => void): ColumnDef<NewsCategoryRow>[] {
+  return [
+    {
+      accessorKey: 'name',
+      header: 'Category',
+      cell: ({ row }) => (
+        <span className="inline-flex items-center gap-2 font-medium">
+          {/* The colour is data chosen by the editor, shown as a swatch next to the name. */}
+          <span
+            aria-hidden="true"
+            className="h-3 w-3 shrink-0 rounded-full border border-border"
+            style={{ backgroundColor: row.original.color || undefined }}
+          />
+          {row.original.name}
+        </span>
+      ),
     },
-  },
-  {
-    accessorKey: 'slug',
-    header: 'Slug',
-    cell: ({ getValue }) => (
-      <span className="font-mono text-sm text-muted-foreground">{getValue<string>()}</span>
-    ),
-  },
-  {
-    accessorKey: 'description',
-    header: 'Description',
-    cell: ({ getValue }) => (
-      <span className="max-w-[300px] truncate block">{getValue<string | undefined>() || '-'}</span>
-    ),
-  },
-  {
-    accessorKey: 'articleCount',
-    header: 'Articles',
-    cell: ({ getValue }) => <Badge variant="secondary">{getValue<number>()}</Badge>,
-  },
-  createCreatedAtColumn<NewsCategory>(),
-  {
-    id: 'actions',
-    enableHiding: false,
-    cell: ({ row }) => <ActionsCell category={row.original} />,
-  },
-]
-
-interface NewsCategoriesTableProps {
-  categories?: NewsCategory[]
+    {
+      accessorKey: 'slug',
+      header: 'Slug',
+      cell: ({ getValue }) => <span className="font-mono text-sm text-muted-foreground">{getValue<string>()}</span>,
+    },
+    {
+      accessorKey: 'description',
+      header: 'Description',
+      cell: ({ getValue }) => <span className="max-w-[300px] truncate block">{getValue<string | null>() || '—'}</span>,
+    },
+    createCreatedAtColumn<NewsCategoryRow>(),
+    {
+      id: 'actions',
+      enableHiding: false,
+      cell: ({ row }) => <ActionsCell category={row.original} onDelete={onDelete} />,
+    },
+  ]
 }
 
-export function NewsCategoriesTable({ categories = mockCategories }: NewsCategoriesTableProps) {
+interface NewsCategoriesTableProps {
+  categories: NewsCategoryRow[]
+  loading?: boolean
+}
+
+export function NewsCategoriesTable({ categories, loading }: NewsCategoriesTableProps) {
+  const [toDelete, setToDelete] = useState<NewsCategoryRow | null>(null)
+  const [deleteCategory, { loading: isDeleting }] = useMutation(DELETE_NEWS_CATEGORY, {
+    refetchQueries: ['GetNewsCategories'],
+  })
+
+  const handleConfirm = async () => {
+    if (!toDelete) return
+    try {
+      await deleteCategory({ variables: { id: toDelete.id } })
+      toast.success('Category deleted')
+      setToDelete(null)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete category')
+    }
+  }
+
   return (
-    <DataTable
-      data={categories}
-      columns={columns}
-      showIndexColumn={false}
-      emptyMessage="No categories found."
-      toolbarConfig={{ searchPlaceholder: 'Search categories...' }}
-    />
+    <>
+      <DataTable
+        data={categories}
+        columns={buildColumns(setToDelete)}
+        loading={loading}
+        showIndexColumn={false}
+        emptyMessage="No categories yet."
+        toolbarConfig={{ searchPlaceholder: 'Search categories…' }}
+      />
+      <ConfirmDialog
+        open={!!toDelete}
+        onOpenChange={(open) => !open && setToDelete(null)}
+        title="Delete this category?"
+        description={`"${toDelete?.name ?? ''}" will be permanently deleted. Articles in it will no longer have a category.`}
+        isPending={isDeleting}
+        onConfirm={handleConfirm}
+      />
+    </>
   )
 }

@@ -23,7 +23,7 @@ function StatsSkeleton() {
 
 function TableSkeleton() {
   return (
-    <div className='rounded-md border'>
+    <div className='rounded-md border' role='status' aria-label='Loading articles'>
       <div className='p-4 border-b'>
         <Skeleton className='h-8 w-64' />
       </div>
@@ -42,14 +42,14 @@ function TableSkeleton() {
 export default async function NewsPage({ searchParams }: NewsPageProps) {
   const params = await searchParams
   return (
-    <div className='space-y-6 p-6'>
+    <div className='space-y-6'>
       <NewsHeader />
 
       <Suspense fallback={<StatsSkeleton />}>
         <NewsStats />
       </Suspense>
 
-      <Suspense fallback={<TableSkeleton />}>
+      <Suspense key={JSON.stringify(params)} fallback={<TableSkeleton />}>
         <NewsDataTable searchParams={Promise.resolve(params)} />
       </Suspense>
     </div>

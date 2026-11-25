@@ -4,9 +4,9 @@ import { useParams } from 'next/navigation'
 import { useQuery } from '@apollo/client/react'
 import { MerchDiscountForm } from '@/features/merch/components/merch-discount-form'
 import { GET_MERCH_DISCOUNT_BY_ID } from '@/graphql/queries/merch'
-import { AlertCircle, Package } from 'lucide-react'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { PageHeader, EmptyState } from '@/components/admin'
+import { Skeleton } from '@/components/ui/skeleton'
+import { PageHeader } from '@/components/admin'
+import { QueryErrorState } from '@/components/query-error-state'
 
 interface GetMerchDiscountByIdData {
   getMerchDiscountById: {
@@ -28,7 +28,7 @@ export default function MerchDiscountEditPage() {
   const params = useParams()
   const discountId = params.id as string
 
-  const { data, loading, error } = useQuery<GetMerchDiscountByIdData>(
+  const { data, loading, error, refetch } = useQuery<GetMerchDiscountByIdData>(
     GET_MERCH_DISCOUNT_BY_ID,
     {
       variables: { id: discountId },
@@ -36,27 +36,7 @@ export default function MerchDiscountEditPage() {
     }
   )
 
-  if (loading) {
-    return (
-      <div className="max-w-3xl mx-auto">
-        <EmptyState icon={Package} title="Loading discount…" className="py-20" />
-      </div>
-    )
-  }
-
-  if (error || !data?.getMerchDiscountById) {
-    return (
-      <div className="space-y-4 max-w-3xl mx-auto">
-        <PageHeader title="Edit Discount" backHref="/merch/discounts" />
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error?.message || 'Discount not found'}</AlertDescription>
-        </Alert>
-      </div>
-    )
-  }
-
-  const discount = data.getMerchDiscountById
+  const discount = data?.getMerchDiscountById
 
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
@@ -65,11 +45,17 @@ export default function MerchDiscountEditPage() {
         description="Update discount information"
         backHref="/merch/discounts"
       />
-      <MerchDiscountForm
-        mode="edit"
-        discountId={discountId}
-        initialData={discount}
-      />
+      {loading ? (
+        <Skeleton className="h-96 w-full" role="status" aria-label="Loading discount" />
+      ) : error || !discount ? (
+        <QueryErrorState
+          title={error ? "Couldn't load this discount" : 'Discount not found'}
+          message={error?.message ?? 'It may have been deleted.'}
+          onRetry={error ? () => void refetch() : undefined}
+        />
+      ) : (
+        <MerchDiscountForm mode="edit" discountId={discountId} initialData={discount} />
+      )}
     </div>
   )
 }

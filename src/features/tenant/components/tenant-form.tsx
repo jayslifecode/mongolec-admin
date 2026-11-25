@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@apollo/client/react";
 import { Button } from "@/components/ui/button";
@@ -16,14 +16,24 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Loader2, Save } from "lucide-react";
 import { CREATE_TENANT, UPDATE_TENANT } from "@/graphql/mutations/tenant";
-import { FormSection } from "@/components/admin";
+import { FormField, FormSection } from "@/components/admin";
 import { toast } from "sonner";
 import type { Tenant, TenantStatus, TenantPlan } from "../types";
+import { normalizeDomain, validateTenantForm } from "../lib/tenant-schema";
 
 interface TenantFormProps {
   mode?: "create" | "edit";
   tenantId?: string;
   initialData?: Tenant;
+}
+
+const FIELD_IDS = { name: "name", slug: "slug", domain: "domain" } as const;
+
+function generateSlug(name: string) {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
 }
 
 export function TenantForm({
@@ -36,27 +46,16 @@ export function TenantForm({
   const [updateTenant, { loading: isUpdating }] = useMutation(UPDATE_TENANT);
   const isSubmitting = isCreating || isUpdating;
 
-  const [formData, setFormData] = useState({
-    name: "",
-    slug: "",
-    domain: "",
-    isActive: true,
-    status: "ACTIVE" as TenantStatus,
-    plan: "FREE" as TenantPlan,
-  });
-
-  useEffect(() => {
-    if (initialData && mode === "edit") {
-      setFormData({
-        name: initialData.name || "",
-        slug: initialData.slug || "",
-        domain: initialData.domain || "",
-        isActive: initialData.isActive ?? true,
-        status: initialData.status || "ACTIVE",
-        plan: initialData.plan || "FREE",
-      });
-    }
-  }, [initialData, mode]);
+  // Initial values come straight from the loaded tenant (the edit page only renders the form once it has loaded).
+  const [formData, setFormData] = useState(() => ({
+    name: initialData?.name ?? "",
+    slug: initialData?.slug ?? "",
+    domain: initialData?.domain ?? "",
+    isActive: initialData?.isActive ?? true,
+    status: (initialData?.status ?? "ACTIVE") as TenantStatus,
+    plan: (initialData?.plan ?? "FREE") as TenantPlan,
+  }));
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const name = e.target.value;
@@ -67,21 +66,22 @@ export function TenantForm({
     }));
   };
 
-  const generateSlug = (name: string) => {
-    return name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const { fieldErrors, data } = validateTenantForm(formData);
+    setErrors(fieldErrors);
+    const firstInvalid = Object.values(FIELD_IDS).find((id) => fieldErrors[id]);
+    if (firstInvalid || !data) {
+      if (firstInvalid) document.getElementById(firstInvalid)?.focus();
+      return;
+    }
+
     try {
       const input = {
-        name: formData.name,
-        slug: formData.slug,
-        domain: formData.domain || null,
+        name: data.name,
+        slug: data.slug,
+        domain: data.domain || null,
         isActive: formData.isActive,
         status: formData.status,
         plan: formData.plan,
@@ -103,74 +103,76 @@ export function TenantForm({
 
       router.push("/tenants");
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        toast.error(error.message || `Failed to ${mode === "edit" ? "update" : "create"} tenant`);
-      } else {
-        toast.error("An unknown error occurred");
-      }
+      toast.error(
+        error instanceof Error && error.message
+          ? error.message
+          : `Failed to ${mode === "edit" ? "update" : "create"} tenant`
+      );
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-5" noValidate>
       <FormSection
         title="Basic Information"
         description="Organization details and identifiers"
       >
-        <div className="space-y-1.5">
-          <Label htmlFor="name">Organization Name <span className="text-destructive">*</span></Label>
-          <Input
-            id="name"
-            value={formData.name}
-            onChange={handleNameChange}
-            placeholder="Enter organization name"
-            required
-            disabled={isSubmitting}
-          />
-        </div>
+        <FormField id={FIELD_IDS.name} label="Organization name" required error={errors.name}>
+          {(control) => (
+            <Input
+              {...control}
+              value={formData.name}
+              onChange={handleNameChange}
+              placeholder="Enter organization name"
+              disabled={isSubmitting}
+            />
+          )}
+        </FormField>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="slug">Slug <span className="text-destructive">*</span></Label>
-          <Input
-            id="slug"
-            value={formData.slug}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, slug: e.target.value }))
-            }
-            placeholder="organization-slug"
-            required
-            disabled={isSubmitting}
-            pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
-            title="Slug must be lowercase letters, numbers, and hyphens only"
-          />
-          <p className="text-xs text-muted-foreground">
-            URL-friendly identifier (lowercase, hyphens only)
-          </p>
-        </div>
+        <FormField
+          id={FIELD_IDS.slug}
+          label="URL name (slug)"
+          required
+          error={errors.slug}
+          description="Lowercase letters, numbers and dashes only."
+        >
+          {(control) => (
+            <Input
+              {...control}
+              value={formData.slug}
+              onChange={(e) => setFormData((prev) => ({ ...prev, slug: e.target.value }))}
+              placeholder="organization-slug"
+              disabled={isSubmitting}
+            />
+          )}
+        </FormField>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="domain">Custom Domain</Label>
-          <Input
-            id="domain"
-            type="url"
-            value={formData.domain}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, domain: e.target.value }))
-            }
-            placeholder="https://example.com"
-            disabled={isSubmitting}
-          />
-          <p className="text-xs text-muted-foreground">
-            Optional custom domain for this organization
-          </p>
-        </div>
+        <FormField
+          id={FIELD_IDS.domain}
+          label="Custom domain"
+          error={errors.domain}
+          description="Optional. Just the domain, for example example.com."
+        >
+          {(control) => (
+            <Input
+              {...control}
+              value={formData.domain}
+              onChange={(e) => setFormData((prev) => ({ ...prev, domain: e.target.value }))}
+              onBlur={() => setFormData((prev) => ({ ...prev, domain: normalizeDomain(prev.domain) }))}
+              placeholder="example.com"
+              autoComplete="off"
+              inputMode="url"
+              disabled={isSubmitting}
+            />
+          )}
+        </FormField>
       </FormSection>
 
       <FormSection
         title="Status & Plan"
         description="Organization status and subscription plan"
       >
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="status">Status</Label>
             <Select
@@ -217,7 +219,7 @@ export function TenantForm({
 
         <div className="flex items-center justify-between rounded-lg border border-border/50 px-4 py-3">
           <div>
-            <p className="text-sm font-medium">Active</p>
+            <Label htmlFor="isActive" className="text-sm font-medium">Active</Label>
             <p className="text-xs text-muted-foreground mt-0.5">Enable or disable this organization</p>
           </div>
           <Switch
@@ -231,11 +233,14 @@ export function TenantForm({
         </div>
       </FormSection>
 
-      <div className="sticky bottom-0 z-10 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <div className="sticky bottom-0 z-10 border-t bg-background">
         <div className="flex items-center gap-3 py-4">
           <Button type="submit" disabled={isSubmitting} className="min-w-[160px]">
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            <Save className="mr-2 h-4 w-4" />
+            {isSubmitting ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" aria-hidden="true" />
+            )}
             {mode === "create" ? "Create Tenant" : "Update Tenant"}
           </Button>
           <Button

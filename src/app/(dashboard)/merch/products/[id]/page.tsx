@@ -1,101 +1,66 @@
 'use client'
 
 import { useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import { useQuery } from '@apollo/client/react'
 import { MerchProductForm } from '@/features/merch/components/merch-product-form'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { GET_MERCH_PRODUCT_BY_ID } from '@/graphql/queries/merch'
-import { Loader2, AlertCircle, Edit, ArrowLeft } from 'lucide-react'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Edit } from 'lucide-react'
 import Link from 'next/link'
+import { PageHeader } from '@/components/admin'
+import { QueryErrorState } from '@/components/query-error-state'
+import type { MerchProduct } from '@/features/merch/types'
 
 interface GetMerchProductByIdData {
-  getMerchProductById: any;
+  getMerchProductById: MerchProduct | null
 }
 
 export default function MerchProductViewPage() {
   const params = useParams()
-  const router = useRouter()
   const productId = params.id as string
   const [language, setLanguage] = useState<'en' | 'mn'>('en')
 
-  const { data, loading, error } = useQuery<GetMerchProductByIdData>(GET_MERCH_PRODUCT_BY_ID, {
+  const { data, loading, error, refetch } = useQuery<GetMerchProductByIdData>(GET_MERCH_PRODUCT_BY_ID, {
     variables: { id: productId, language },
     skip: !productId,
   })
 
-  if (loading) {
-    return (
-      <div className="container mx-auto py-6 max-w-5xl">
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          <span className="ml-2 text-muted-foreground">Loading product...</span>
-        </div>
-      </div>
-    )
-  }
-
-  if (error || !data?.getMerchProductById) {
-    return (
-      <div className="container mx-auto py-6 max-w-5xl">
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            {error?.message || 'Product not found'}
-          </AlertDescription>
-        </Alert>
-      </div>
-    )
-  }
-
-  const product = data.getMerchProductById
+  const product = data?.getMerchProductById
 
   return (
-    <div className="container mx-auto py-6 max-w-5xl">
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => router.back()}
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">View Product</h1>
-              <p className="text-muted-foreground mt-2">
-                Product details (read-only)
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Tabs value={language} onValueChange={(value) => setLanguage(value as 'en' | 'mn')}>
-              <TabsList>
-                <TabsTrigger value="en">English</TabsTrigger>
-                <TabsTrigger value="mn">Монгол</TabsTrigger>
-              </TabsList>
-            </Tabs>
-
-            <Button asChild>
-              <Link href={`/merch/products/${productId}/edit`}>
-                <Edit className="mr-2 h-4 w-4" />
-                Edit Product
-              </Link>
-            </Button>
-          </div>
+    <div className="space-y-6 max-w-5xl mx-auto">
+      <PageHeader
+        title="View Product"
+        description="Product details (read-only)"
+        backHref="/merch"
+        lang={language}
+        onLangChange={setLanguage}
+        actions={
+          <Button asChild>
+            <Link href={`/merch/products/${productId}/edit`}>
+              <Edit className="mr-2 h-4 w-4" aria-hidden="true" />
+              Edit Product
+            </Link>
+          </Button>
+        }
+      />
+      {/* Keep showing the product while the other language loads. */}
+      {loading && !product ? (
+        <div className="space-y-4" role="status" aria-label="Loading product">
+          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-48 w-full" />
         </div>
-
-        <MerchProductForm
-          mode="view"
-          language={language}
-          productId={productId}
-          initialData={product}
+      ) : error || !product ? (
+        <QueryErrorState
+          title={error ? "Couldn't load this product" : 'Product not found'}
+          message={error?.message ?? 'It may have been deleted.'}
+          onRetry={error ? () => void refetch() : undefined}
         />
-      </div>
+      ) : (
+        <MerchProductForm mode="view" language={language} productId={productId} initialData={product} />
+      )}
     </div>
   )
 }

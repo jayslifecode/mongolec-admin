@@ -1,16 +1,22 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useQuery } from '@apollo/client/react'
 import { MerchProductForm } from '@/features/merch/components/merch-product-form'
-import { GET_MERCH_PRODUCT_BY_ID } from '@/graphql/queries/merch'
-import { Loader2, AlertCircle, Package } from 'lucide-react'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { PageHeader, EmptyState } from '@/components/admin'
+import { GET_MERCH_PRODUCT_BY_ID, GET_MERCH_PRODUCT_MN } from '@/graphql/queries/merch'
+import { mergeLocalized } from '@/features/merch/lib/localized'
+import { Skeleton } from '@/components/ui/skeleton'
+import { PageHeader } from '@/components/admin'
+import { QueryErrorState } from '@/components/query-error-state'
+import type { MerchProduct } from '@/features/merch/types'
 
-interface GetMerchProductByIdData {
-  getMerchProductById: any
+interface ProductData {
+  getMerchProductById: (MerchProduct & { name: string; description?: string; shortDescription?: string }) | null
+}
+
+interface ProductMnData {
+  getMerchProductById: { name?: string; description?: string; shortDescription?: string } | null
 }
 
 export default function MerchProductEditPage() {
@@ -18,36 +24,34 @@ export default function MerchProductEditPage() {
   const productId = params.id as string
   const [language, setLanguage] = useState<'en' | 'mn'>('en')
 
-  const { data, loading, error } = useQuery<GetMerchProductByIdData>(GET_MERCH_PRODUCT_BY_ID, {
-    variables: { id: productId, language },
+  // The API returns one language per request. Fetch both so saving never overwrites the other language.
+  const en = useQuery<ProductData>(GET_MERCH_PRODUCT_BY_ID, {
+    variables: { id: productId, language: 'en' },
+    skip: !productId,
+  })
+  const mn = useQuery<ProductMnData>(GET_MERCH_PRODUCT_MN, {
+    variables: { id: productId },
     skip: !productId,
   })
 
-  if (loading) {
-    return (
-      <div className="max-w-4xl mx-auto">
-        <EmptyState icon={Package} title="Loading product…" className="py-20" />
-      </div>
-    )
-  }
+  const enProduct = en.data?.getMerchProductById
+  const mnProduct = mn.data?.getMerchProductById
+  const product = useMemo<MerchProduct | null>(() => {
+    if (!enProduct) return null
+    return {
+      ...enProduct,
+      name: mergeLocalized(enProduct.name, mnProduct?.name),
+      description: mergeLocalized(enProduct.description, mnProduct?.description),
+      shortDescription: mergeLocalized(enProduct.shortDescription, mnProduct?.shortDescription),
+    }
+  }, [enProduct, mnProduct])
 
-  if (error || !data?.getMerchProductById) {
-    return (
-      <div className="space-y-4 max-w-4xl mx-auto">
-        <PageHeader title="Edit Product" backHref="/merch" />
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error?.message || 'Product not found'}</AlertDescription>
-        </Alert>
-      </div>
-    )
-  }
-
-  const product = data.getMerchProductById
-  const title = typeof product.name === 'string' ? product.name : product.name?.en || 'Edit Product'
+  const loading = en.loading || mn.loading
+  const error = en.error ?? mn.error
+  const title = enProduct?.name || 'Edit Product'
 
   return (
-    <div className="space-y-5 max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-4xl mx-auto">
       <PageHeader
         title={title}
         description="Update product information and settings"
@@ -55,12 +59,26 @@ export default function MerchProductEditPage() {
         lang={language}
         onLangChange={setLanguage}
       />
-      <MerchProductForm
-        mode="edit"
-        language={language}
-        productId={productId}
-        initialData={product}
-      />
+      {loading ? (
+        <div className="space-y-4" role="status" aria-label="Loading product">
+          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-48 w-full" />
+        </div>
+      ) : error || !product ? (
+        <QueryErrorState
+          title={error ? "Couldn't load this product" : 'Product not found'}
+          message={error?.message ?? 'It may have been deleted.'}
+          onRetry={error ? () => void Promise.all([en.refetch(), mn.refetch()]) : undefined}
+        />
+      ) : (
+        <MerchProductForm
+          mode="edit"
+          language={language}
+          onLanguageChange={setLanguage}
+          productId={productId}
+          initialData={product}
+        />
+      )}
     </div>
   )
 }
