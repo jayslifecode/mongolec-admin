@@ -8,8 +8,6 @@ import { Input } from '@/components/ui/input'
 import { FileText, Search } from 'lucide-react'
 import { ApplicationsTable } from '@/features/applications/components/applications-table'
 import { GET_APPLICATIONS, GET_APPLICATION_STATS } from '@/graphql/queries/applications'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -101,15 +99,15 @@ export default function ApplicationsPage() {
 
   const stats = [
     { label: 'Total', value: statsLoading ? '—' : (s?.totalApplications ?? 0) },
-    { label: 'Pending', value: statsLoading ? '—' : (s?.pendingApplications ?? 0), accent: 'amber' as const },
-    { label: 'Approved', value: statsLoading ? '—' : (s?.approvedApplications ?? 0), accent: 'green' as const },
-    { label: 'Confirmed', value: statsLoading ? '—' : (s?.confirmedApplications ?? 0), accent: 'blue' as const },
+    { label: 'Pending', value: statsLoading ? '—' : (s?.pendingApplications ?? 0) },
+    { label: 'Approved', value: statsLoading ? '—' : (s?.approvedApplications ?? 0) },
+    { label: 'Confirmed', value: statsLoading ? '—' : (s?.confirmedApplications ?? 0) },
     { label: 'Waitlisted', value: statsLoading ? '—' : (s?.waitlistedApplications ?? 0) },
-    { label: 'Rejected', value: statsLoading ? '—' : (s?.rejectedApplications ?? 0), accent: 'red' as const },
+    { label: 'Rejected', value: statsLoading ? '—' : (s?.rejectedApplications ?? 0) },
   ]
 
   return (
-    <div className="space-y-5 p-6">
+    <div className="space-y-6">
       <PageHeader
         title="Applications"
         description="Review and manage rally applications"
@@ -117,16 +115,9 @@ export default function ApplicationsPage() {
 
       <StatBar stats={stats} loading={statsLoading} />
 
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>Failed to load applications: {error.message}</AlertDescription>
-        </Alert>
-      )}
-
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <TabsList className="h-9">
+          <TabsList className="h-9" aria-label="Filter applications by status">
             {STATUS_TABS.map(tab => (
               <TabsTrigger key={tab.value} value={tab.value} className="text-xs px-4">
                 {tab.label}
@@ -136,7 +127,7 @@ export default function ApplicationsPage() {
 
           <div className="flex gap-2 shrink-0">
             <Select value={rallyFilter ?? 'all'} onValueChange={(v) => setRallyFilter(v === 'all' ? undefined : v)}>
-              <SelectTrigger className="h-9 w-[180px] text-xs">
+              <SelectTrigger className="h-9 w-[180px] text-xs" aria-label="Filter by rally">
                 <SelectValue placeholder="All Rallies" />
               </SelectTrigger>
               <SelectContent>
@@ -150,9 +141,10 @@ export default function ApplicationsPage() {
             </Select>
 
             <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
               <Input
                 placeholder="Search applicant…"
+                aria-label="Search applicants by name, email or rally"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-8 h-9 w-[200px] text-xs"
@@ -163,18 +155,24 @@ export default function ApplicationsPage() {
 
         {STATUS_TABS.map(tab => (
           <TabsContent key={tab.value} value={tab.value} className="mt-4">
-            {loading ? (
-              <div className="rounded-xl border border-border/60 bg-card">
-                <EmptyState icon={FileText} title="Loading applications…" className="py-12" />
-              </div>
-            ) : filteredApplications.length === 0 ? (
-              <div className="rounded-xl border border-border/60 bg-card">
-                <EmptyState icon={FileText} title="No applications found" description="Applications will appear here once submitted." />
+            {!loading && !error && filteredApplications.length === 0 ? (
+              <div className="rounded-xl border border-border bg-card">
+                <EmptyState
+                  icon={FileText}
+                  title="No applications found"
+                  description={
+                    searchQuery
+                      ? 'No applications match your search. Try a different name or email.'
+                      : 'Applications will appear here once submitted.'
+                  }
+                />
               </div>
             ) : (
               <ApplicationsTable
                 applications={filteredApplications}
-                loading={loading}
+                loading={loading && applications.length === 0}
+                error={error?.message}
+                onRetry={() => refetch()}
                 onActionComplete={() => refetch()}
               />
             )}

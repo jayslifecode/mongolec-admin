@@ -32,6 +32,7 @@ export function GalleryFields({ block, onChange, disabled }: GalleryFieldsProps)
       <div className="space-y-1.5">
         <Label>Images *</Label>
         <Textarea
+          aria-label="Image URLs, one per line"
           value={text}
           onChange={(e) => handleTextChange(e.target.value)}
           placeholder={'https://example.com/photo-1.jpg\nhttps://example.com/photo-2.jpg | Optional caption'}
@@ -49,7 +50,7 @@ export function GalleryFields({ block, onChange, disabled }: GalleryFieldsProps)
           onValueChange={(value) => onChange({ ...block, layout: value as GalleryBlock['layout'] })}
           disabled={disabled}
         >
-          <SelectTrigger>
+          <SelectTrigger aria-label="Gallery layout">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

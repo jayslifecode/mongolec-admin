@@ -9,7 +9,6 @@ import { useMutation } from '@apollo/client/react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -30,6 +29,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { DataTable, createUpdatedAtColumn } from '@/components/data-table'
+import { StatusBadge } from '@/components/admin'
+import { QueryError } from '@/features/rallies/components/query-error'
 import type { LocalizedText, Story } from '../types'
 import { storyStatusConfig, storyTypeConfig } from '../types'
 import {
@@ -59,9 +60,14 @@ function ActionsCell({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8">
-          <MoreHorizontal className="h-4 w-4" />
-          <span className="sr-only">Open menu</span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          aria-label={`Actions for ${getDisplayText(story.title) || 'story'}`}
+        >
+          <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
@@ -121,7 +127,7 @@ function buildColumns(
               </div>
             ) : (
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted border flex-shrink-0">
-                <BookOpen className="h-4 w-4 text-muted-foreground" />
+                <BookOpen className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
               </div>
             )}
             <div className="min-w-0 flex-1">
@@ -149,9 +155,7 @@ function buildColumns(
       accessorKey: 'type',
       header: 'Type',
       cell: ({ row }) => (
-        <Badge variant="outline" className="text-xs">
-          {storyTypeConfig[row.original.type]?.label ?? row.original.type}
-        </Badge>
+        <StatusBadge>{storyTypeConfig[row.original.type]?.label ?? row.original.type}</StatusBadge>
       ),
     },
     {
@@ -160,7 +164,7 @@ function buildColumns(
       cell: ({ row }) => {
         const status = row.original.status
         const config = storyStatusConfig[status]
-        return <Badge variant={config?.variant ?? 'outline'}>{config?.label ?? status}</Badge>
+        return <StatusBadge tone={config?.tone ?? 'neutral'}>{config?.label ?? status}</StatusBadge>
       },
     },
     {
@@ -172,10 +176,14 @@ function buildColumns(
           <button
             type="button"
             onClick={() => onToggleFeatured(story.id)}
-            className="inline-flex items-center gap-1 text-xs"
+            aria-pressed={story.featured}
+            aria-label={story.featured ? 'Unfeature story' : 'Feature story'}
+            title={story.featured ? 'Unfeature story' : 'Feature story'}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-muted transition-colors"
           >
             <Star
-              className={`h-4 w-4 ${story.featured ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground'}`}
+              aria-hidden="true"
+              className={`h-4 w-4 ${story.featured ? 'fill-primary text-primary' : 'text-muted-foreground'}`}
             />
           </button>
         )
@@ -195,9 +203,11 @@ function buildColumns(
 interface StoriesTableProps {
   stories: Story[]
   loading?: boolean
+  error?: string | null
+  onRetry?: () => void
 }
 
-export function StoriesTable({ stories, loading }: StoriesTableProps) {
+export function StoriesTable({ stories, loading, error, onRetry }: StoriesTableProps) {
   const router = useRouter()
   const [deleteDialogId, setDeleteDialogId] = useState<string | null>(null)
 
@@ -256,6 +266,8 @@ export function StoriesTable({ stories, loading }: StoriesTableProps) {
 
   const columns = buildColumns(handleDeleteClick, handlePublishToggle, handleToggleFeatured)
 
+  if (error) return <QueryError title="Could not load stories" message={error} onRetry={onRetry} />
+
   return (
     <>
       <DataTable
@@ -268,7 +280,7 @@ export function StoriesTable({ stories, loading }: StoriesTableProps) {
         toolbarConfig={{ searchPlaceholder: 'Search stories...' }}
       />
 
-      <AlertDialog open={!!deleteDialogId} onOpenChange={() => setDeleteDialogId(null)}>
+      <AlertDialog open={!!deleteDialogId} onOpenChange={(open) => !open && setDeleteDialogId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Story</AlertDialogTitle>

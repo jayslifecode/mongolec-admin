@@ -2,8 +2,8 @@
 
 import { useQuery } from '@apollo/client/react'
 import { useParams } from 'next/navigation'
-import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   MapPin, Globe, Mail, Building, FileText, Calendar, Clock, Trophy,
 } from 'lucide-react'
@@ -12,10 +12,9 @@ import { AlertCircle } from 'lucide-react'
 import {
   ApproveButton,
   RejectButton,
-  SelectButton,
 } from '@/features/nominations/components/nomination-actions'
 import { nominationStatusConfig } from '@/features/nominations/types'
-import { PageHeader, FormSection, DetailField, EmptyState } from '@/components/admin'
+import { PageHeader, FormSection, DetailField, StatusBadge } from '@/components/admin'
 
 interface NominationDetail {
   id: string
@@ -83,15 +82,17 @@ export default function NominationDetailPage() {
 
   if (loading) {
     return (
-      <div className="p-6">
-        <EmptyState icon={MapPin} title="Loading nomination…" className="py-20" />
+      <div className="space-y-6" role="status" aria-label="Loading nomination">
+        <Skeleton className="h-9 w-64" />
+        <Skeleton className="h-24" />
+        <Skeleton className="h-64" />
       </div>
     )
   }
 
   if (error || !nomination) {
     return (
-      <div className="space-y-4 p-6">
+      <div className="space-y-6">
         <PageHeader title="Nomination" backHref="/nominations" />
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -101,48 +102,47 @@ export default function NominationDetailPage() {
     )
   }
 
+  const parkName = Array.isArray(nomination.parkNames) ? nomination.parkNames[0] : str(nomination.parkNames) ?? ''
   const statusConf = nominationStatusConfig[nomination.status as keyof typeof nominationStatusConfig]
 
   return (
-    <div className="space-y-5 p-6">
+    <div className="space-y-6">
       <PageHeader
-        title={nomination.parkNames[0]}
+        title={parkName}
         description={nomination.country}
         backHref="/nominations"
         badge={
-          <Badge variant={statusConf.variant} className={statusConf.color}>
-            {statusConf.label}
-          </Badge>
+          <StatusBadge tone={statusConf?.tone ?? 'neutral'}>{statusConf?.label ?? nomination.status}</StatusBadge>
         }
       />
 
       {/* Actions */}
       <FormSection title="Actions" description="Review and update nomination status">
         <div className="flex flex-wrap gap-2">
+          {nomination.status !== 'PENDING' && nomination.status !== 'UNDER_REVIEW' && (
+            <p className="text-sm text-muted-foreground">No review actions are available for this status.</p>
+          )}
           {(nomination.status === 'PENDING' || nomination.status === 'UNDER_REVIEW') && (
             <>
               <ApproveButton nominationId={nomination.id} status={nomination.status} onActionComplete={() => refetch()} />
               <RejectButton nominationId={nomination.id} status={nomination.status} onActionComplete={() => refetch()} />
             </>
           )}
-          {nomination.status === 'APPROVED' && (
-            <SelectButton nominationId={nomination.id} status={nomination.status} onActionComplete={() => refetch()} />
-          )}
         </div>
       </FormSection>
 
-      <div className="grid gap-5 lg:grid-cols-3">
-        <div className="space-y-5 lg:col-span-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
           {/* Park Information */}
           <FormSection title="Park Information">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <DetailField label="Park Name" value={nomination.parkNames[0]} icon={MapPin} />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <DetailField label="Park Name" value={parkName} icon={MapPin} />
               <DetailField label="Country" value={nomination.country} />
               {nomination.parkWebsites?.[0] && (
                 <DetailField
                   label="Website"
                   value={
-                    <a href={nomination.parkWebsites[0]} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1.5">
+                    <a href={nomination.parkWebsites[0]} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2 flex items-center gap-1.5">
                       <Globe className="h-3.5 w-3.5" />
                       {nomination.parkWebsites[0]}
                     </a>
@@ -154,7 +154,7 @@ export default function NominationDetailPage() {
 
           {/* Park Contact */}
           <FormSection title="Park Contact">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <DetailField
                 label="Contact Name"
                 value={`${nomination.parkContactFirstName} ${nomination.parkContactLastName}`.trim() || undefined}
@@ -162,7 +162,7 @@ export default function NominationDetailPage() {
               <DetailField
                 label="Email"
                 value={nomination.parkContactEmail ? (
-                  <a href={`mailto:${nomination.parkContactEmail}`} className="text-blue-600 hover:underline">
+                  <a href={`mailto:${nomination.parkContactEmail}`} className="text-primary underline underline-offset-2">
                     {nomination.parkContactEmail}
                   </a>
                 ) : undefined}
@@ -174,7 +174,7 @@ export default function NominationDetailPage() {
           {/* Partner Organization */}
           {(str(nomination.partnerOrganizationName) || nomination.partnerContactEmail || nomination.partnerWebsite) && (
             <FormSection title="Partner Organization">
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {str(nomination.partnerOrganizationName) && (
                   <DetailField label="Organization" value={str(nomination.partnerOrganizationName)} icon={Building} />
                 )}
@@ -188,7 +188,7 @@ export default function NominationDetailPage() {
                   <DetailField
                     label="Email"
                     value={
-                      <a href={`mailto:${nomination.partnerContactEmail}`} className="text-blue-600 hover:underline">
+                      <a href={`mailto:${nomination.partnerContactEmail}`} className="text-primary underline underline-offset-2">
                         {nomination.partnerContactEmail}
                       </a>
                     }
@@ -199,7 +199,7 @@ export default function NominationDetailPage() {
                   <DetailField
                     label="Website"
                     value={
-                      <a href={nomination.partnerWebsite} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1.5">
+                      <a href={nomination.partnerWebsite} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2 flex items-center gap-1.5">
                         <Globe className="h-3.5 w-3.5" />
                         {nomination.partnerWebsite}
                       </a>
@@ -233,7 +233,7 @@ export default function NominationDetailPage() {
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-5">
+        <div className="space-y-6">
           <FormSection title="Nomination Details">
             <div className="space-y-3">
               <DetailField label="Nominated On" value={formatDate(nomination.createdAt)} icon={Calendar} />

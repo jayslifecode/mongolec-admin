@@ -29,7 +29,7 @@ export function ChaptersFields({ block, onChange, disabled }: ChaptersFieldsProp
   return (
     <div className="space-y-3">
       {block.items.map((item, index) => (
-        <div key={index} className="space-y-2 rounded-lg border border-border/60 p-3">
+        <div key={index} className="space-y-2 rounded-lg border border-border p-3">
           <div className="flex items-center justify-between">
             <Label className="text-xs text-muted-foreground">Chapter {index + 1}</Label>
             {!disabled && (
@@ -39,25 +39,29 @@ export function ChaptersFields({ block, onChange, disabled }: ChaptersFieldsProp
                 size="icon"
                 className="h-6 w-6"
                 onClick={() => removeItem(index)}
+                aria-label={`Remove chapter ${index + 1}`}
               >
-                <Trash2 className="h-3.5 w-3.5" />
+                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
               </Button>
             )}
           </div>
           <Input
             placeholder="Title *"
+            aria-label={`Chapter ${index + 1} title`}
             value={item.title}
             onChange={(e) => updateItem(index, (it) => ({ ...it, title: e.target.value }))}
             disabled={disabled}
           />
           <Input
             placeholder="Subtitle"
+            aria-label={`Chapter ${index + 1} subtitle`}
             value={item.subtitle ?? ''}
             onChange={(e) => updateItem(index, (it) => ({ ...it, subtitle: e.target.value }))}
             disabled={disabled}
           />
           <Textarea
             placeholder="Body *"
+            aria-label={`Chapter ${index + 1} body`}
             value={item.body}
             onChange={(e) => updateItem(index, (it) => ({ ...it, body: e.target.value }))}
             disabled={disabled}
@@ -65,6 +69,7 @@ export function ChaptersFields({ block, onChange, disabled }: ChaptersFieldsProp
           />
           <Input
             placeholder="Image URL"
+            aria-label={`Chapter ${index + 1} image URL`}
             value={item.image ?? ''}
             onChange={(e) => updateItem(index, (it) => ({ ...it, image: e.target.value }))}
             disabled={disabled}
@@ -73,7 +78,7 @@ export function ChaptersFields({ block, onChange, disabled }: ChaptersFieldsProp
       ))}
       {!disabled && (
         <Button type="button" variant="outline" size="sm" onClick={addItem}>
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          <Plus className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
           Add Chapter
         </Button>
       )}
@@ -103,6 +108,7 @@ export function StatsFields({ block, onChange, disabled }: StatsFieldsProps) {
         <div key={index} className="flex items-center gap-2">
           <Input
             placeholder="Value *"
+            aria-label={`Stat ${index + 1} value`}
             value={item.value}
             onChange={(e) => updateItem(index, (it) => ({ ...it, value: e.target.value }))}
             disabled={disabled}
@@ -110,6 +116,7 @@ export function StatsFields({ block, onChange, disabled }: StatsFieldsProps) {
           />
           <Input
             placeholder="Label *"
+            aria-label={`Stat ${index + 1} label`}
             value={item.label}
             onChange={(e) => updateItem(index, (it) => ({ ...it, label: e.target.value }))}
             disabled={disabled}
@@ -121,15 +128,16 @@ export function StatsFields({ block, onChange, disabled }: StatsFieldsProps) {
               size="icon"
               className="h-8 w-8 shrink-0"
               onClick={() => removeItem(index)}
+              aria-label={`Remove stat ${index + 1}`}
             >
-              <Trash2 className="h-3.5 w-3.5" />
+              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
             </Button>
           )}
         </div>
       ))}
       {!disabled && (
         <Button type="button" variant="outline" size="sm" onClick={addItem}>
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          <Plus className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
           Add Stat
         </Button>
       )}

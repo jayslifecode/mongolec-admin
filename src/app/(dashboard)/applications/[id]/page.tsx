@@ -2,10 +2,10 @@
 
 import { useQuery } from '@apollo/client/react'
 import { useParams } from 'next/navigation'
-import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
-  Bike, Heart, Calendar, MapPin, Phone, Mail, FileText,
+  Bike, Heart, Calendar, MapPin, Phone, Mail,
   DollarSign, CheckCircle, XCircle, Clock, AlertCircle, User,
 } from 'lucide-react'
 import { GET_APPLICATION } from '@/graphql/queries/applications'
@@ -24,7 +24,7 @@ import {
   medicalCertificationLabel,
   safeHttpUrl,
 } from '@/features/applications/lib/format-response'
-import { PageHeader, FormSection, DetailField, EmptyState } from '@/components/admin'
+import { PageHeader, FormSection, DetailField, StatusBadge } from '@/components/admin'
 import { AcceptancePanel, type AcceptanceDetail } from '@/features/applications/components/acceptance-panel'
 
 interface ApplicationDetail {
@@ -110,15 +110,18 @@ export default function ApplicationDetailPage() {
 
   if (loading) {
     return (
-      <div className="p-6">
-        <EmptyState icon={FileText} title="Loading application…" className="py-20" />
+      <div className="space-y-6" role="status" aria-label="Loading application">
+        <Skeleton className="h-9 w-64" />
+        <Skeleton className="h-24" />
+        <Skeleton className="h-40" />
+        <Skeleton className="h-64" />
       </div>
     )
   }
 
   if (error || !application) {
     return (
-      <div className="space-y-4 p-6">
+      <div className="space-y-6">
         <PageHeader title="Application" backHref="/applications" />
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -151,19 +154,15 @@ export default function ApplicationDetailPage() {
   const hasResponses = Boolean(motivation || travelExperience || futureLocations || socialMediaLinks || howHeard)
 
   return (
-    <div className="space-y-5 p-6">
+    <div className="space-y-6">
       <PageHeader
         title={`${application.firstName} ${application.lastName}`}
         description={application.email}
         backHref="/applications"
         badge={
           <div className="flex gap-1.5">
-            <Badge variant={statusConf.variant} className={statusConf.color}>
-              {statusConf.label}
-            </Badge>
-            <Badge variant={paymentConf.variant} className={paymentConf.color}>
-              {paymentConf.label}
-            </Badge>
+            <StatusBadge tone={statusConf?.tone ?? 'neutral'}>{statusConf?.label ?? application.status}</StatusBadge>
+            <StatusBadge tone={paymentConf.tone}>{paymentConf.label}</StatusBadge>
           </div>
         }
       />
@@ -203,11 +202,11 @@ export default function ApplicationDetailPage() {
         onLinkCreated={() => refetch()}
       />
 
-      <div className="grid gap-5 lg:grid-cols-3">
-        <div className="space-y-5 lg:col-span-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
           {/* Personal Information */}
           <FormSection title="Personal Information">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <DetailField label="Full Name" value={`${application.firstName} ${application.lastName}`} icon={User} />
               <DetailField label="Email" value={application.email} icon={Mail} />
               <DetailField label="Phone" value={application.phone} icon={Phone} />
@@ -226,25 +225,25 @@ export default function ApplicationDetailPage() {
             <div className="flex items-center gap-2 mb-3">
               {application.isRider ? (
                 <>
-                  <Bike className="h-4 w-4 text-blue-500" />
-                  <span className="text-sm font-medium text-blue-600">Rider</span>
+                  <Bike className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  <span className="text-sm font-medium">Rider</span>
                 </>
               ) : (
                 <>
-                  <Heart className="h-4 w-4 text-pink-500" />
-                  <span className="text-sm font-medium text-pink-600">Supporter</span>
+                  <Heart className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  <span className="text-sm font-medium">Supporter</span>
                 </>
               )}
             </div>
             {application.isRider && (
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <DetailField
                   label="Motorcycle License"
                   value={
                     <span className="flex items-center gap-1.5">
                       {application.hasMotorcycleLicense
-                        ? <><CheckCircle className="h-3.5 w-3.5 text-emerald-500" /> Yes</>
-                        : <><XCircle className="h-3.5 w-3.5 text-red-500" /> No</>}
+                        ? <><CheckCircle className="h-3.5 w-3.5 text-success" aria-hidden="true" /> Yes</>
+                        : <><XCircle className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" /> No</>}
                     </span>
                   }
                 />
@@ -277,14 +276,14 @@ export default function ApplicationDetailPage() {
 
           {/* Medical */}
           <FormSection title="Medical Information">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <DetailField
                 label="Medical Professional"
                 value={
                   <span className="flex items-center gap-1.5">
                     {application.isMedicalProfessional
-                      ? <><CheckCircle className="h-3.5 w-3.5 text-emerald-500" /> Yes</>
-                      : <><XCircle className="h-3.5 w-3.5 text-red-500" /> No</>}
+                      ? <><CheckCircle className="h-3.5 w-3.5 text-success" aria-hidden="true" /> Yes</>
+                      : <><XCircle className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" /> No</>}
                   </span>
                 }
               />
@@ -302,7 +301,7 @@ export default function ApplicationDetailPage() {
 
           {/* Emergency Contact */}
           <FormSection title="Emergency Contact">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <DetailField label="Name" value={`${application.emergencyContactFirstName} ${application.emergencyContactLastName}`} />
               <DetailField label="Relationship" value={application.emergencyContactRelationship} />
               <DetailField label="Phone" value={application.emergencyContactPhone} icon={Phone} />
@@ -333,7 +332,7 @@ export default function ApplicationDetailPage() {
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-5">
+        <div className="space-y-6">
           {/* Rally */}
           <FormSection title="Selected Rally">
             <div className="space-y-3">
@@ -352,8 +351,8 @@ export default function ApplicationDetailPage() {
                 value={
                   <span className="flex items-center gap-1.5">
                     {application.depositPaid
-                      ? <><CheckCircle className="h-3.5 w-3.5 text-emerald-500" /> Yes</>
-                      : <><XCircle className="h-3.5 w-3.5 text-red-500" /> No</>}
+                      ? <><CheckCircle className="h-3.5 w-3.5 text-success" aria-hidden="true" /> Yes</>
+                      : <><XCircle className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" /> No</>}
                   </span>
                 }
               />

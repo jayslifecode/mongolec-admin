@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@apollo/client/react";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ import {
   SingleImageUpload,
   SingleImageUploadRef,
 } from "@/components/single-image-upload";
-import { FormSection } from "@/components/admin";
+import { FormField, FormSection } from "@/components/admin";
 import { Loader2, Save } from "lucide-react";
 import {
   CREATE_RALLY,
@@ -27,11 +27,29 @@ import {
 } from "@/graphql/mutations/rallies";
 import { toast } from "sonner";
 import { EMPTY_TERMS_FORM, termsFromForm, termsToForm } from "@/features/rallies/lib/acceptance-terms";
+import { generateSlug, validateRallyForm, type RallyFormValues } from "../lib/rally-schema";
 import type { Rally } from "../types";
+
+type FieldKey = keyof RallyFormValues;
+
+/** Order fields appear on the page, so the first invalid one gets focus. */
+const FIELD_ORDER: FieldKey[] = [
+  "titleEn", "slug", "duration", "startDate", "endDate", "applicationDeadline", "maxParticipants",
+  "heroVideo", "photoCredit", "minimumContribution", "deposit", "nonRefundable", "currency", "finalPaymentDue",
+];
+
+const FIELD_DOM_ID: Record<FieldKey, string> = {
+  titleEn: "title-en", slug: "slug", duration: "duration", startDate: "startDate", endDate: "endDate",
+  applicationDeadline: "applicationDeadline", maxParticipants: "maxParticipants", heroVideo: "heroVideo",
+  photoCredit: "photoCredit", minimumContribution: "terms-minimumContribution", deposit: "terms-deposit",
+  nonRefundable: "terms-nonRefundable", currency: "terms-currency", finalPaymentDue: "terms-finalPaymentDue",
+};
 
 interface RallyFormProps {
   mode?: "create" | "edit" | "view";
   language: "en" | "mn";
+  /** Lets the form switch to English when the English title is missing. */
+  onLanguageChange?: (language: "en" | "mn") => void;
   rallyId?: string;
   initialData?: Rally;
 }
@@ -39,13 +57,17 @@ interface RallyFormProps {
 export function RallyForm({
   mode = "create",
   language,
+  onLanguageChange,
   rallyId,
   initialData,
 }: RallyFormProps) {
   const router = useRouter();
   const [createRally, { loading: isCreating }] = useMutation(CREATE_RALLY);
   const [updateRally, { loading: isUpdating }] = useMutation(UPDATE_RALLY);
-  const isSubmitting = isCreating || isUpdating;
+  const [isUploading, setIsUploading] = useState(false);
+  const isSubmitting = isCreating || isUpdating || isUploading;
+  const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
+  const [isSlugEdited, setIsSlugEdited] = useState(mode !== "create");
   const isReadOnly = mode === "view";
 
   const heroImageRef = useRef<SingleImageUploadRef>(null);
@@ -66,8 +88,8 @@ export function RallyForm({
         targetAudience: normalizeLangField(initialData.targetAudience),
         startDate: initialData.startDate ? initialData.startDate.split('T')[0] : "",
         endDate: initialData.endDate ? initialData.endDate.split('T')[0] : "",
-        duration: initialData.duration || 0,
-        maxParticipants: initialData.maxParticipants || 0,
+        duration: String(initialData.duration ?? 0),
+        maxParticipants: initialData.maxParticipants ? String(initialData.maxParticipants) : "",
         heroImage: initialData.heroImage || "",
         heroVideo: initialData.heroVideo || "",
         photoCredit: initialData.photoCredit || "",
@@ -86,8 +108,8 @@ export function RallyForm({
       targetAudience: { en: "", mn: "" },
       startDate: "",
       endDate: "",
-      duration: 0,
-      maxParticipants: 0,
+      duration: "",
+      maxParticipants: "",
       heroImage: "",
       heroVideo: "",
       photoCredit: "",
@@ -101,33 +123,74 @@ export function RallyForm({
 
   const [heroImageFile, setHeroImageFile] = useState<File | null>(null);
 
-  // Auto-generate slug from title
-  const generateSlug = (title: string) => {
-    return title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '');
+  const clearError = (key: FieldKey) =>
+    setErrors((prev) => (prev[key] ? { ...prev, [key]: undefined } : prev));
+
+  const setField = <K extends keyof typeof formData>(key: K, value: (typeof formData)[K], errorKey?: FieldKey) => {
+    setFormData((prev) => ({ ...prev, [key]: value }));
+    if (errorKey) clearError(errorKey);
+  };
+
+  const setTerm = (key: keyof typeof formData.terms, value: string) => {
+    setFormData((prev) => ({ ...prev, terms: { ...prev.terms, [key]: value } }));
+    clearError(key as FieldKey);
   };
 
   const handleTitleChange = (value: string) => {
     setFormData((prev) => ({
       ...prev,
       title: { ...prev.title, [language]: value },
-      slug: mode === "create" ? generateSlug(value) : prev.slug,
+      // Slug follows the English title until someone edits it by hand.
+      slug: !isSlugEdited && language === "en" ? generateSlug(value) : prev.slug,
     }));
+    if (language === "en") {
+      clearError("titleEn");
+      if (!isSlugEdited) clearError("slug");
+    }
   };
+
+  const focusField = useCallback((key: FieldKey) => {
+    window.setTimeout(() => document.getElementById(FIELD_DOM_ID[key])?.focus(), 0);
+  }, []);
+
+  const toFormValues = (): RallyFormValues => ({
+    titleEn: formData.title.en,
+    slug: formData.slug,
+    startDate: formData.startDate,
+    endDate: formData.endDate,
+    applicationDeadline: formData.applicationDeadline,
+    duration: formData.duration,
+    maxParticipants: formData.maxParticipants,
+    photoCredit: formData.photoCredit,
+    heroVideo: formData.heroVideo.trim(),
+    ...formData.terms,
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (isReadOnly) return;
+    if (isReadOnly || isSubmitting) return;
+
+    const { errors: found } = validateRallyForm(toFormValues());
+    setErrors(found);
+    const firstInvalid = FIELD_ORDER.find((key) => found[key]);
+    if (firstInvalid) {
+      if (firstInvalid === "titleEn" && language !== "en") onLanguageChange?.("en");
+      toast.error(found[firstInvalid] ?? "Please fix the highlighted fields");
+      focusField(firstInvalid);
+      return;
+    }
 
     try {
       // Upload hero image first if one was selected
       let heroImageUrl: string | null = initialData?.heroImage || null;
       if (heroImageRef.current && heroImageFile) {
-        toast.info("Uploading image...");
-        heroImageUrl = await heroImageRef.current.uploadImage();
+        setIsUploading(true);
+        try {
+          heroImageUrl = await heroImageRef.current.uploadImage();
+        } finally {
+          setIsUploading(false);
+        }
         if (!heroImageUrl) {
           toast.error("Failed to upload hero image");
           return;
@@ -141,10 +204,10 @@ export function RallyForm({
         targetAudience: formData.targetAudience,
         startDate: formData.startDate ? new Date(formData.startDate).toISOString() : null,
         endDate: formData.endDate ? new Date(formData.endDate).toISOString() : null,
-        duration: formData.duration || 0,
-        maxParticipants: formData.maxParticipants || null,
+        duration: Number(formData.duration) || 0,
+        maxParticipants: formData.maxParticipants.trim() ? Number(formData.maxParticipants) : null,
         heroImage: heroImageUrl,
-        heroVideo: formData.heroVideo || null,
+        heroVideo: formData.heroVideo.trim() || null,
         photoCredit: formData.photoCredit.trim() || null,
         isPlaceholder: formData.isPlaceholder,
         acceptanceTerms: termsFromForm(formData.terms),
@@ -156,7 +219,8 @@ export function RallyForm({
         ? { ...baseInput, slug: formData.slug, status: formData.status }
         : {
             ...baseInput,
-            slug: formData.slug || generateSlug(formData.title.en || formData.title.mn || "rally"),
+            slug: formData.slug,
+            status: formData.status,
             impactOverview: { en: "", mn: "" },
             conservationActivities: { en: "", mn: "" },
             rangerPartnerships: { en: "", mn: "" },
@@ -178,218 +242,178 @@ export function RallyForm({
 
       router.push("/rallies");
     } catch (error: unknown) {
-      console.error("Failed to save rally:", error);
-      if (error instanceof Error) {
-        toast.error(
-          error.message ||
-            `Failed to ${mode === "edit" ? "update" : "create"} rally`
-        );
-      } else {
-        toast.error("An unknown error occurred");
-      }
+      toast.error(
+        error instanceof Error && error.message
+          ? error.message
+          : `Failed to ${mode === "edit" ? "update" : "create"} rally`
+      );
     }
   };
 
+  const ph = (en: string, mn: string) => (language === "en" ? en : mn);
+  const sub = (key: "description" | "location" | "targetAudience") => (value: string) =>
+    setFormData((prev) => ({ ...prev, [key]: { ...prev[key], [language]: value } }));
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Rally Information */}
+    <form onSubmit={handleSubmit} className="space-y-6" noValidate>
       <FormSection
         title="Rally Information"
         description={isReadOnly ? "Rally details" : "Add rally details"}
       >
-          <div className="space-y-2">
-            <Label htmlFor={`title-${language}`}>Title *</Label>
+        <FormField
+          id={`title-${language}`}
+          label={language === "en" ? "Title (English)" : "Title (Mongolian)"}
+          required={language === "en" && !isReadOnly}
+          error={language === "en" ? errors.titleEn : undefined}
+        >
+          {(c) => (
             <Input
-              id={`title-${language}`}
+              {...c}
               value={formData.title[language]}
               onChange={(e) => handleTitleChange(e.target.value)}
-              placeholder={
-                language === "en" ? "Enter rally title" : "Раллийн нэр"
-              }
-              required={!isReadOnly}
+              placeholder={ph("Enter rally title", "Раллийн нэр")}
               disabled={isReadOnly}
             />
-          </div>
+          )}
+        </FormField>
 
-          <div className="space-y-2">
-            <Label htmlFor="slug">Slug</Label>
+        <FormField
+          id="slug"
+          label="Slug"
+          error={errors.slug}
+          description="URL-friendly version of the title. Follows the English title until you edit it."
+        >
+          {(c) => (
             <Input
-              id="slug"
+              {...c}
               value={formData.slug}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, slug: e.target.value }))
-              }
+              onChange={(e) => {
+                setIsSlugEdited(true);
+                setField("slug", e.target.value, "slug");
+              }}
               placeholder="rally-url-slug"
               disabled={isReadOnly}
             />
-            <p className="text-xs text-muted-foreground">
-              URL-friendly version of the title. Auto-generated from title.
-            </p>
-          </div>
+          )}
+        </FormField>
 
-          <div className="space-y-2">
-            <Label htmlFor={`description-${language}`}>Description</Label>
+        <FormField id={`description-${language}`} label="Description">
+          {(c) => (
             <Textarea
-              id={`description-${language}`}
+              {...c}
               value={formData.description[language]}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  description: {
-                    ...prev.description,
-                    [language]: e.target.value,
-                  },
-                }))
-              }
-              placeholder={
-                language === "en"
-                  ? "Rally description..."
-                  : "Раллийн тодорхойлолт..."
-              }
+              onChange={(e) => sub("description")(e.target.value)}
+              placeholder={ph("Rally description...", "Раллийн тодорхойлолт...")}
               rows={6}
               disabled={isReadOnly}
             />
-          </div>
+          )}
+        </FormField>
 
-          <div className="space-y-2">
-            <Label htmlFor={`location-${language}`}>Location</Label>
+        <FormField id={`location-${language}`} label="Location">
+          {(c) => (
             <Input
-              id={`location-${language}`}
+              {...c}
               value={formData.location[language]}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  location: {
-                    ...prev.location,
-                    [language]: e.target.value,
-                  },
-                }))
-              }
-              placeholder={
-                language === "en" ? "Event location" : "Үйл ажиллагааны байршил"
-              }
+              onChange={(e) => sub("location")(e.target.value)}
+              placeholder={ph("Event location", "Үйл ажиллагааны байршил")}
               disabled={isReadOnly}
             />
-          </div>
+          )}
+        </FormField>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor={`targetAudience-${language}`}>Target Audience</Label>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormField id={`targetAudience-${language}`} label="Target Audience">
+            {(c) => (
               <Input
-                id={`targetAudience-${language}`}
+                {...c}
                 value={formData.targetAudience[language]}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    targetAudience: {
-                      ...prev.targetAudience,
-                      [language]: e.target.value,
-                    },
-                  }))
-                }
-                placeholder={
-                  language === "en" ? "e.g., Youth, Professionals" : "жишээлбэл, Залуучууд, Мэргэжилтнүүд"
-                }
+                onChange={(e) => sub("targetAudience")(e.target.value)}
+                placeholder={ph("e.g., Youth, Professionals", "жишээлбэл, Залуучууд, Мэргэжилтнүүд")}
                 disabled={isReadOnly}
               />
-            </div>
+            )}
+          </FormField>
 
-            <div className="space-y-2">
-              <Label htmlFor="duration">Duration (hours)</Label>
+          <FormField id="duration" label="Duration (hours)" error={errors.duration}>
+            {(c) => (
               <Input
-                id="duration"
+                {...c}
                 type="number"
                 min="0"
+                step="1"
                 value={formData.duration}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    duration: parseInt(e.target.value) || 0,
-                  }))
-                }
+                onChange={(e) => setField("duration", e.target.value, "duration")}
                 disabled={isReadOnly}
               />
-            </div>
-          </div>
-      </FormSection>
-
-      {/* Dates */}
-      <FormSection title="Dates & Schedule">
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor="startDate">Start Date *</Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={formData.startDate}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    startDate: e.target.value,
-                  }))
-                }
-                required={!isReadOnly}
-                disabled={isReadOnly}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="endDate">End Date *</Label>
-              <Input
-                id="endDate"
-                type="date"
-                value={formData.endDate}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    endDate: e.target.value,
-                  }))
-                }
-                required={!isReadOnly}
-                disabled={isReadOnly}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="applicationDeadline">Application Deadline</Label>
-              <Input
-                id="applicationDeadline"
-                type="date"
-                value={formData.applicationDeadline}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    applicationDeadline: e.target.value,
-                  }))
-                }
-                disabled={isReadOnly}
-              />
-            </div>
-          </div>
-      </FormSection>
-
-      {/* Participants */}
-      <FormSection title="Participants">
-        <div className="space-y-2">
-          <Label htmlFor="maxParticipants">Maximum Participants</Label>
-          <Input
-            id="maxParticipants"
-            type="number"
-            min="0"
-            value={formData.maxParticipants}
-            onChange={(e) =>
-              setFormData((prev) => ({
-                ...prev,
-                maxParticipants: parseInt(e.target.value) || 0,
-              }))
-            }
-            placeholder="Leave empty for unlimited"
-            disabled={isReadOnly}
-          />
+            )}
+          </FormField>
         </div>
       </FormSection>
 
-      {/* Hero Image */}
+      <FormSection title="Dates & Schedule">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <FormField id="startDate" label="Start Date" required={!isReadOnly} error={errors.startDate}>
+            {(c) => (
+              <Input
+                {...c}
+                type="date"
+                value={formData.startDate}
+                onChange={(e) => {
+                  setField("startDate", e.target.value, "startDate");
+                  clearError("endDate");
+                  clearError("applicationDeadline");
+                }}
+                disabled={isReadOnly}
+              />
+            )}
+          </FormField>
+
+          <FormField id="endDate" label="End Date" required={!isReadOnly} error={errors.endDate}>
+            {(c) => (
+              <Input
+                {...c}
+                type="date"
+                min={formData.startDate || undefined}
+                value={formData.endDate}
+                onChange={(e) => setField("endDate", e.target.value, "endDate")}
+                disabled={isReadOnly}
+              />
+            )}
+          </FormField>
+
+          <FormField id="applicationDeadline" label="Application Deadline" error={errors.applicationDeadline}>
+            {(c) => (
+              <Input
+                {...c}
+                type="date"
+                max={formData.startDate || undefined}
+                value={formData.applicationDeadline}
+                onChange={(e) => setField("applicationDeadline", e.target.value, "applicationDeadline")}
+                disabled={isReadOnly}
+              />
+            )}
+          </FormField>
+        </div>
+      </FormSection>
+
+      <FormSection title="Participants">
+        <FormField id="maxParticipants" label="Maximum Participants" error={errors.maxParticipants}>
+          {(c) => (
+            <Input
+              {...c}
+              type="number"
+              min="1"
+              step="1"
+              value={formData.maxParticipants}
+              onChange={(e) => setField("maxParticipants", e.target.value, "maxParticipants")}
+              placeholder="Leave empty for unlimited"
+              disabled={isReadOnly}
+            />
+          )}
+        </FormField>
+      </FormSection>
+
       <FormSection
         title="Hero Image"
         description={
@@ -402,6 +426,7 @@ export function RallyForm({
       >
         {isReadOnly && initialData?.heroImage ? (
           <div className="relative w-full max-w-xs aspect-video overflow-hidden rounded-lg border bg-muted">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={initialData.heroImage}
               alt={typeof initialData.title === "string" ? initialData.title : initialData.title?.en || "Rally"}
@@ -419,43 +444,40 @@ export function RallyForm({
         )}
       </FormSection>
 
-      {/* Hero Video URL */}
       <FormSection title="Hero Video" description="Add a video URL (YouTube, Vimeo, etc.)">
-        <div className="space-y-2">
-          <Label htmlFor="heroVideo">Video URL</Label>
-          <Input
-            id="heroVideo"
-            type="url"
-            value={formData.heroVideo}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, heroVideo: e.target.value }))
-            }
-            placeholder="https://www.youtube.com/watch?v=..."
-            disabled={isReadOnly}
-          />
-        </div>
+        <FormField id="heroVideo" label="Video URL" error={errors.heroVideo}>
+          {(c) => (
+            <Input
+              {...c}
+              type="url"
+              value={formData.heroVideo}
+              onChange={(e) => setField("heroVideo", e.target.value, "heroVideo")}
+              placeholder="https://www.youtube.com/watch?v=..."
+              disabled={isReadOnly}
+            />
+          )}
+        </FormField>
       </FormSection>
 
-      {/* Photo credit (round 4) */}
       <FormSection title="Photo credit" description='Shown under the gallery as "Photos by: …"'>
-        <div className="space-y-2">
-          <Label htmlFor="photoCredit">Photos by</Label>
-          <Input
-            id="photoCredit"
-            value={formData.photoCredit}
-            onChange={(e) => setFormData((prev) => ({ ...prev, photoCredit: e.target.value }))}
-            placeholder="e.g. Temuujin Otgonbayar"
-            disabled={isReadOnly}
-          />
-        </div>
+        <FormField id="photoCredit" label="Photos by" error={errors.photoCredit}>
+          {(c) => (
+            <Input
+              {...c}
+              value={formData.photoCredit}
+              onChange={(e) => setField("photoCredit", e.target.value, "photoCredit")}
+              placeholder="e.g. Temuujin Otgonbayar"
+              disabled={isReadOnly}
+            />
+          )}
+        </FormField>
       </FormSection>
 
-      {/* Acceptance letter amounts (round 4) */}
       <FormSection
         title="Acceptance letter"
         description="Amounts quoted in the letter approved riders sign. Leave empty to omit them."
       >
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {(
             [
               ["minimumContribution", "Minimum contribution", "11000"],
@@ -464,56 +486,52 @@ export function RallyForm({
               ["currency", "Currency", "USD"],
             ] as const
           ).map(([key, label, placeholder]) => (
-            <div key={key} className="space-y-2">
-              <Label htmlFor={`terms-${key}`}>{label}</Label>
+            <FormField key={key} id={`terms-${key}`} label={label} error={errors[key]}>
+              {(c) => (
+                <Input
+                  {...c}
+                  inputMode={key === "currency" ? "text" : "decimal"}
+                  maxLength={key === "currency" ? 3 : undefined}
+                  value={formData.terms[key]}
+                  onChange={(e) => setTerm(key, e.target.value)}
+                  placeholder={placeholder}
+                  disabled={isReadOnly}
+                />
+              )}
+            </FormField>
+          ))}
+          <FormField id="terms-finalPaymentDue" label="Final payment due" error={errors.finalPaymentDue}>
+            {(c) => (
               <Input
-                id={`terms-${key}`}
-                inputMode={key === "currency" ? "text" : "numeric"}
-                value={formData.terms[key]}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, terms: { ...prev.terms, [key]: e.target.value } }))
-                }
-                placeholder={placeholder}
+                {...c}
+                type="date"
+                value={formData.terms.finalPaymentDue}
+                onChange={(e) => setTerm("finalPaymentDue", e.target.value)}
                 disabled={isReadOnly}
               />
-            </div>
-          ))}
-          <div className="space-y-2">
-            <Label htmlFor="terms-finalPaymentDue">Final payment due</Label>
-            <Input
-              id="terms-finalPaymentDue"
-              type="date"
-              value={formData.terms.finalPaymentDue}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, terms: { ...prev.terms, finalPaymentDue: e.target.value } }))
-              }
-              disabled={isReadOnly}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="terms-startCity">Start city (riders travel to and from)</Label>
-            <Input
-              id="terms-startCity"
-              value={formData.terms.startCity}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, terms: { ...prev.terms, startCity: e.target.value } }))
-              }
-              placeholder="Ulaanbaatar, Mongolia"
-              disabled={isReadOnly}
-            />
-          </div>
+            )}
+          </FormField>
+          <FormField id="terms-startCity" label="Start city (riders travel to and from)">
+            {(c) => (
+              <Input
+                {...c}
+                value={formData.terms.startCity}
+                onChange={(e) => setTerm("startCity", e.target.value)}
+                placeholder="Ulaanbaatar, Mongolia"
+                disabled={isReadOnly}
+              />
+            )}
+          </FormField>
         </div>
       </FormSection>
 
-      {/* Rally Settings */}
       <FormSection title="Rally Settings">
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <Label htmlFor="status">Status</Label>
           <Select
             value={formData.status}
-            onValueChange={(value) =>
-              setFormData((prev) => ({ ...prev, status: value }))
-            }
+            onValueChange={(value) => setField("status", value)}
+            disabled={isReadOnly}
           >
             <SelectTrigger id="status">
               <SelectValue />
@@ -528,24 +546,20 @@ export function RallyForm({
           </Select>
         </div>
 
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <div className="space-y-0.5">
             <Label htmlFor="isRecruiting">Open for Applications</Label>
-            <p className="text-sm text-muted-foreground">
-              Allow users to apply for this rally
-            </p>
+            <p className="text-sm text-muted-foreground">Allow users to apply for this rally</p>
           </div>
           <Switch
             id="isRecruiting"
             checked={formData.isRecruiting}
-            onCheckedChange={(checked) =>
-              setFormData((prev) => ({ ...prev, isRecruiting: checked }))
-            }
+            onCheckedChange={(checked) => setField("isRecruiting", checked)}
             disabled={isReadOnly}
           />
         </div>
 
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <div className="space-y-0.5">
             <Label htmlFor="isPlaceholder">Details coming (simple tile)</Label>
             <p className="text-sm text-muted-foreground">
@@ -556,32 +570,29 @@ export function RallyForm({
           <Switch
             id="isPlaceholder"
             checked={formData.isPlaceholder}
-            onCheckedChange={(checked) =>
-              setFormData((prev) => ({ ...prev, isPlaceholder: checked }))
-            }
+            onCheckedChange={(checked) => setField("isPlaceholder", checked)}
             disabled={isReadOnly}
           />
         </div>
       </FormSection>
 
-      {/* Form Actions */}
-      <div className="sticky bottom-0 z-10 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="flex items-center gap-3 py-4">
-          <Button type="submit" disabled={isSubmitting} className="min-w-[160px]">
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            <Save className="mr-2 h-4 w-4" />
-            {mode === "create" ? "Create Rally" : "Update Rally"}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.back()}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </Button>
+      {!isReadOnly && (
+        <div className="sticky bottom-0 z-10 border-t bg-background">
+          <div className="flex items-center gap-3 py-4">
+            <Button type="submit" disabled={isSubmitting} className="min-w-[160px]">
+              {isSubmitting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" aria-hidden="true" />
+              )}
+              {isUploading ? "Uploading image…" : mode === "create" ? "Create Rally" : "Update Rally"}
+            </Button>
+            <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting}>
+              Cancel
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
     </form>
   );
 }

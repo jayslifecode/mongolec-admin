@@ -25,6 +25,7 @@ export function HeroFields({ block, onChange, disabled }: FieldsProps<HeroBlock>
       <div className="space-y-1.5">
         <Label>Title *</Label>
         <Input
+          aria-label="Title"
           value={block.title}
           onChange={(e) => onChange({ ...block, title: e.target.value })}
           disabled={disabled}
@@ -33,6 +34,7 @@ export function HeroFields({ block, onChange, disabled }: FieldsProps<HeroBlock>
       <div className="space-y-1.5">
         <Label>Subtitle</Label>
         <Input
+          aria-label="Subtitle"
           value={block.subtitle ?? ''}
           onChange={(e) => onChange({ ...block, subtitle: e.target.value })}
           disabled={disabled}
@@ -41,6 +43,7 @@ export function HeroFields({ block, onChange, disabled }: FieldsProps<HeroBlock>
       <div className="space-y-1.5">
         <Label>Image URL *</Label>
         <Input
+          aria-label="Image URL"
           value={block.image}
           onChange={(e) => onChange({ ...block, image: e.target.value })}
           disabled={disabled}
@@ -49,6 +52,7 @@ export function HeroFields({ block, onChange, disabled }: FieldsProps<HeroBlock>
       <div className="space-y-1.5">
         <Label>Video URL</Label>
         <Input
+          aria-label="Video URL"
           value={block.video ?? ''}
           onChange={(e) => onChange({ ...block, video: e.target.value })}
           disabled={disabled}
@@ -64,6 +68,7 @@ export function StatementFields({ block, onChange, disabled }: FieldsProps<State
       <div className="space-y-1.5">
         <Label>Eyebrow</Label>
         <Input
+          aria-label="Eyebrow"
           value={block.eyebrow ?? ''}
           onChange={(e) => onChange({ ...block, eyebrow: e.target.value })}
           disabled={disabled}
@@ -72,6 +77,7 @@ export function StatementFields({ block, onChange, disabled }: FieldsProps<State
       <div className="space-y-1.5">
         <Label>Text *</Label>
         <Textarea
+          aria-label="Text"
           value={block.text}
           onChange={(e) => onChange({ ...block, text: e.target.value })}
           disabled={disabled}
@@ -88,6 +94,7 @@ export function TextFields({ block, onChange, disabled }: FieldsProps<TextBlock>
       <div className="space-y-1.5">
         <Label>Heading</Label>
         <Input
+          aria-label="Heading"
           value={block.heading ?? ''}
           onChange={(e) => onChange({ ...block, heading: e.target.value })}
           disabled={disabled}
@@ -96,6 +103,7 @@ export function TextFields({ block, onChange, disabled }: FieldsProps<TextBlock>
       <div className="space-y-1.5">
         <Label>Body *</Label>
         <Textarea
+          aria-label="Body"
           value={block.body}
           onChange={(e) => onChange({ ...block, body: e.target.value })}
           disabled={disabled}
@@ -112,6 +120,7 @@ export function ImageFields({ block, onChange, disabled }: FieldsProps<ImageBloc
       <div className="space-y-1.5">
         <Label>Image URL *</Label>
         <Input
+          aria-label="Image URL"
           value={block.src}
           onChange={(e) => onChange({ ...block, src: e.target.value })}
           disabled={disabled}
@@ -120,6 +129,7 @@ export function ImageFields({ block, onChange, disabled }: FieldsProps<ImageBloc
       <div className="space-y-1.5">
         <Label>Caption</Label>
         <Input
+          aria-label="Caption"
           value={block.caption ?? ''}
           onChange={(e) => onChange({ ...block, caption: e.target.value })}
           disabled={disabled}
@@ -144,6 +154,7 @@ export function VideoFields({ block, onChange, disabled }: FieldsProps<VideoBloc
       <div className="space-y-1.5">
         <Label>Video URL *</Label>
         <Input
+          aria-label="Video URL"
           value={block.src}
           onChange={(e) => onChange({ ...block, src: e.target.value })}
           disabled={disabled}
@@ -152,6 +163,7 @@ export function VideoFields({ block, onChange, disabled }: FieldsProps<VideoBloc
       <div className="space-y-1.5">
         <Label>Poster Image URL</Label>
         <Input
+          aria-label="Poster Image URL"
           value={block.poster ?? ''}
           onChange={(e) => onChange({ ...block, poster: e.target.value })}
           disabled={disabled}
@@ -167,6 +179,7 @@ export function ClosingFields({ block, onChange, disabled }: FieldsProps<Closing
       <div className="space-y-1.5">
         <Label>Title *</Label>
         <Input
+          aria-label="Title"
           value={block.title}
           onChange={(e) => onChange({ ...block, title: e.target.value })}
           disabled={disabled}
@@ -175,6 +188,7 @@ export function ClosingFields({ block, onChange, disabled }: FieldsProps<Closing
       <div className="space-y-1.5">
         <Label>Subtitle</Label>
         <Input
+          aria-label="Subtitle"
           value={block.subtitle ?? ''}
           onChange={(e) => onChange({ ...block, subtitle: e.target.value })}
           disabled={disabled}
@@ -183,6 +197,7 @@ export function ClosingFields({ block, onChange, disabled }: FieldsProps<Closing
       <div className="space-y-1.5">
         <Label>Image URL</Label>
         <Input
+          aria-label="Image URL"
           value={block.image ?? ''}
           onChange={(e) => onChange({ ...block, image: e.target.value })}
           disabled={disabled}
@@ -192,6 +207,7 @@ export function ClosingFields({ block, onChange, disabled }: FieldsProps<Closing
         <div className="space-y-1.5">
           <Label>CTA Label</Label>
           <Input
+            aria-label="CTA Label"
             value={block.cta?.label ?? ''}
             onChange={(e) =>
               onChange({ ...block, cta: { label: e.target.value, href: block.cta?.href ?? '' } })
@@ -202,6 +218,7 @@ export function ClosingFields({ block, onChange, disabled }: FieldsProps<Closing
         <div className="space-y-1.5">
           <Label>CTA Link</Label>
           <Input
+            aria-label="CTA Link"
             value={block.cta?.href ?? ''}
             onChange={(e) =>
               onChange({ ...block, cta: { label: block.cta?.label ?? '', href: e.target.value } })
