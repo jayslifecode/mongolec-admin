@@ -1,81 +1,23 @@
-'use client'
-
-import { useState } from 'react'
-import { z } from 'zod'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useRouter } from 'next/navigation'
-import { ArrowRight, Loader2 } from 'lucide-react'
-import { toast } from 'sonner'
-import { sleep, cn } from '@/lib/utils'
+import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
 
-const formSchema = z.object({
-  email: z.email({
-    error: (iss) => (iss.input === '' ? 'Please enter your email' : undefined),
-  }),
-})
-
-interface ForgotPasswordFormProps extends React.HTMLAttributes<HTMLFormElement> {}
-
-export function ForgotPasswordForm({ className, ...props }: ForgotPasswordFormProps) {
-  const router = useRouter()
-  const [isLoading, setIsLoading] = useState(false)
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: { email: '' },
-  })
-
-  function onSubmit(data: z.infer<typeof formSchema>) {
-    setIsLoading(true)
-
-    toast.promise(sleep(2000), {
-      loading: 'Sending email...',
-      success: () => {
-        setIsLoading(false)
-        form.reset()
-        router.push('/otp')
-        return `Email sent to ${data.email}`
-      },
-      error: 'Error',
-    })
-  }
-
+/**
+ * The backend has no password reset flow yet, so this does not pretend to send an email.
+ * It tells the person what to do instead.
+ */
+export function ForgotPasswordNotice() {
   return (
-    <Form {...form}>
-      <form
-        onSubmit={form.handleSubmit(onSubmit)}
-        className={cn('grid gap-2', className)}
-        {...props}
-      >
-        <FormField
-          control={form.control}
-          name='email'
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input placeholder='name@example.com' {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <Button className='mt-2' disabled={isLoading}>
-          Continue
-          {isLoading ? <Loader2 className='animate-spin' /> : <ArrowRight />}
-        </Button>
-      </form>
-    </Form>
+    <div className='grid gap-4'>
+      <p className='text-sm'>
+        Ask an administrator to reset your password. Once they have, you can sign in with the new one.
+      </p>
+      <Button asChild variant='outline'>
+        <Link href='/sign-in'>
+          <ArrowLeft aria-hidden='true' />
+          Back to sign in
+        </Link>
+      </Button>
+    </div>
   )
 }
