@@ -8,22 +8,36 @@ interface UsersDataTableProps {
 
 export async function UsersDataTable({ searchParams }: UsersDataTableProps) {
   const params = await searchParams
-  const page = parseInt(params.page ?? '1', 10)
-  const pageSize = parseInt(params.pageSize ?? '20', 10)
+  const page = Math.max(1, parseInt(params.page ?? '1', 10) || 1)
+  const pageSize = Math.max(1, parseInt(params.pageSize ?? '20', 10) || 20)
+  const search = params.search ?? ''
 
-  const data = await getUsers({
-    page,
-    limit: pageSize,
-    search: params.search,
-    status: params.status as 'ACTIVE' | 'PENDING' | 'REJECTED' | 'INACTIVE' | undefined,
-  })
-
-  return (
-    <UsersDataTableClient
-      users={data.users}
-      totalItems={data.pagination.total}
-      currentPage={page}
-      pageSize={pageSize}
-    />
-  )
+  try {
+    const data = await getUsers({
+      page,
+      limit: pageSize,
+      search: search || undefined,
+      status: params.status as 'ACTIVE' | 'PENDING' | 'REJECTED' | 'INACTIVE' | undefined,
+    })
+    return (
+      <UsersDataTableClient
+        users={data.users}
+        totalItems={data.pagination.total}
+        currentPage={page}
+        pageSize={pageSize}
+        search={search}
+      />
+    )
+  } catch (error) {
+    return (
+      <UsersDataTableClient
+        users={[]}
+        totalItems={0}
+        currentPage={page}
+        pageSize={pageSize}
+        search={search}
+        error={error instanceof Error ? error.message : 'Something went wrong.'}
+      />
+    )
+  }
 }
