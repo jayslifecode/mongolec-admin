@@ -90,12 +90,3 @@ export const GET_NOMINATION_STATS = gql`
     }
   }
 `
-
-export const CHECK_IF_NOMINATED = gql`
-  query CheckIfNominated($parkName: String!, $country: String!) {
-    checkIfNominated(parkName: $parkName, country: $country) {
-      nominated
-      nominationId
-    }
-  }
-`

@@ -56,12 +56,3 @@ export const TOGGLE_STORY_FEATURED = gql`
     }
   }
 `
-
-export const UPDATE_STORY_ORDER = gql`
-  mutation UpdateStoryOrder($id: ID!, $order: Int!) {
-    updateStoryOrder(id: $id, order: $order) {
-      id
-      displayOrder
-    }
-  }
-`

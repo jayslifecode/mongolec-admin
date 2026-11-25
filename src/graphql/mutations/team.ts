@@ -42,13 +42,3 @@ export const DELETE_TEAM_MEMBER = gql`
     }
   }
 `
-
-export const REORDER_TEAM_MEMBERS = gql`
-  mutation ReorderTeamMembers($ids: [ID!]!) {
-    reorderTeamMembers(ids: $ids) {
-      id
-      displayOrder
-      updatedAt
-    }
-  }
-`

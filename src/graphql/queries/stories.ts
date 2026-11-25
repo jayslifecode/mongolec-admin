@@ -45,17 +45,3 @@ export const GET_STORY_BY_ID = gql`
     }
   }
 `
-
-export const GET_STORY_STATS = gql`
-  query GetStoryStats($rallyId: ID) {
-    getStoryStats(rallyId: $rallyId) {
-      totalStories
-      publishedStories
-      draftStories
-      featuredStories
-      impactStories
-      riderStories
-      rallyStories
-    }
-  }
-`
