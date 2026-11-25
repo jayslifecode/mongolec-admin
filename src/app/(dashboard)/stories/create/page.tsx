@@ -8,7 +8,7 @@ export default function StoryCreatePage() {
   const [language, setLanguage] = useState<'en' | 'mn'>('en')
 
   return (
-    <div className="space-y-5 max-w-4xl mx-auto p-6">
+    <div className="space-y-6 max-w-4xl mx-auto">
       <PageHeader
         title="Create Story"
         description="Add a new story and build its content"
@@ -16,7 +16,7 @@ export default function StoryCreatePage() {
         lang={language}
         onLangChange={setLanguage}
       />
-      <StoryForm mode="create" language={language} />
+      <StoryForm mode="create" language={language} onLanguageChange={setLanguage} />
     </div>
   )
 }

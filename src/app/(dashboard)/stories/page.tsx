@@ -9,8 +9,6 @@ import Link from 'next/link'
 import { StoriesTable } from '@/features/stories/components/stories-table'
 import { GET_STORIES } from '@/graphql/queries/stories'
 import type { Story } from '@/features/stories/types'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle } from 'lucide-react'
 import { PageHeader, StatBar, EmptyState } from '@/components/admin'
 
 interface GetStoriesData {
@@ -32,7 +30,7 @@ export default function StoriesPage() {
 
   const activeFilter = STATUS_TABS.find((t) => t.value === activeTab)?.filter
 
-  const { data, loading, error } = useQuery<GetStoriesData>(GET_STORIES, {
+  const { data, loading, error, refetch } = useQuery<GetStoriesData>(GET_STORIES, {
     variables: { status: activeFilter, limit: 100, page: 1 },
     fetchPolicy: 'cache-and-network',
   })
@@ -50,7 +48,6 @@ export default function StoriesPage() {
     {
       label: 'Published',
       value: allLoading ? '—' : allStories.filter((s) => s.status === 'PUBLISHED').length,
-      accent: 'green' as const,
     },
     {
       label: 'Draft',
@@ -59,19 +56,18 @@ export default function StoriesPage() {
     {
       label: 'Featured',
       value: allLoading ? '—' : allStories.filter((s) => s.featured).length,
-      accent: 'primary' as const,
     },
   ]
 
   return (
-    <div className="space-y-5 p-6">
+    <div className="space-y-6">
       <PageHeader
         title="Stories"
         description="Manage impact stories, testimonials, and profiles"
         actions={
           <Button size="sm" asChild>
             <Link href="/stories/create">
-              <Plus className="h-4 w-4 mr-1.5" />
+              <Plus className="h-4 w-4 mr-1.5" aria-hidden="true" />
               New Story
             </Link>
           </Button>
@@ -80,15 +76,8 @@ export default function StoriesPage() {
 
       <StatBar stats={stats} loading={allLoading} />
 
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>Failed to load stories: {error.message}</AlertDescription>
-        </Alert>
-      )}
-
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="h-9">
+        <TabsList className="h-9" aria-label="Filter stories by status">
           {STATUS_TABS.map((tab) => (
             <TabsTrigger key={tab.value} value={tab.value} className="text-xs px-4">
               {tab.label}
@@ -98,12 +87,8 @@ export default function StoriesPage() {
 
         {STATUS_TABS.map((tab) => (
           <TabsContent key={tab.value} value={tab.value} className="mt-4">
-            {loading ? (
-              <div className="rounded-xl border border-border/60 bg-card">
-                <EmptyState icon={BookOpen} title="Loading stories…" className="py-12" />
-              </div>
-            ) : stories.length === 0 ? (
-              <div className="rounded-xl border border-border/60 bg-card">
+            {!loading && !error && stories.length === 0 ? (
+              <div className="rounded-xl border border-border bg-card">
                 <EmptyState
                   icon={BookOpen}
                   title="No stories found"
@@ -111,7 +96,7 @@ export default function StoriesPage() {
                   action={
                     <Button size="sm" asChild>
                       <Link href="/stories/create">
-                        <Plus className="h-4 w-4 mr-1.5" />
+                        <Plus className="h-4 w-4 mr-1.5" aria-hidden="true" />
                         New Story
                       </Link>
                     </Button>
@@ -119,7 +104,12 @@ export default function StoriesPage() {
                 />
               </div>
             ) : (
-              <StoriesTable stories={stories} />
+              <StoriesTable
+                stories={stories}
+                loading={loading && stories.length === 0}
+                error={error?.message}
+                onRetry={() => refetch()}
+              />
             )}
           </TabsContent>
         ))}

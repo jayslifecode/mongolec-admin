@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
 import {
   Select,
   SelectContent,
@@ -15,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { FormSection } from '@/components/admin'
+import { FormField, FormSection, StatusBadge } from '@/components/admin'
 import { Loader2, Save } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -30,6 +29,8 @@ import { storyStatusConfig, storyTypeConfig } from '../types'
 interface StoryFormProps {
   mode?: 'create' | 'edit' | 'view'
   language: 'en' | 'mn'
+  /** Lets the form switch to English when the English title is missing. */
+  onLanguageChange?: (language: 'en' | 'mn') => void
   storyId?: string
   initialData?: Story
 }
@@ -57,7 +58,14 @@ function normalizeContent(content: StoryContent | null | undefined): StoryConten
   return content
 }
 
-export function StoryForm({ mode = 'create', language, storyId, initialData }: StoryFormProps) {
+const FIELD_DOM_ID: Record<string, string> = {
+  'title.en': 'title-en',
+  slug: 'slug',
+  featuredImage: 'featuredImage',
+}
+const FIELD_ORDER = ['title.en', 'slug', 'featuredImage']
+
+export function StoryForm({ mode = 'create', language, onLanguageChange, storyId, initialData }: StoryFormProps) {
   const router = useRouter()
   const [createStory, { loading: isCreating }] = useMutation(CREATE_STORY)
   const [updateStory, { loading: isUpdating }] = useMutation(UPDATE_STORY)
@@ -140,9 +148,12 @@ export function StoryForm({ mode = 'create', language, storyId, initialData }: S
     setFieldErrors(nextFieldErrors)
 
     if (!isValid) {
-      const firstError = Object.values(nextFieldErrors)[0]
-      if (firstError) {
-        toast.error(firstError)
+      const firstKey = FIELD_ORDER.find((key) => nextFieldErrors[key]) ?? Object.keys(nextFieldErrors)[0]
+      if (firstKey) {
+        toast.error(nextFieldErrors[firstKey])
+        if (firstKey === 'title.en' && language !== 'en') onLanguageChange?.('en')
+        const domId = FIELD_DOM_ID[firstKey]
+        if (domId) window.setTimeout(() => document.getElementById(domId)?.focus(), 0)
       } else if (Object.keys(blockErrors).length > 0) {
         toast.error('Fix the highlighted blocks before saving')
       }
@@ -181,11 +192,11 @@ export function StoryForm({ mode = 'create', language, storyId, initialData }: S
 
       router.push('/stories')
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        toast.error(error.message || `Failed to ${mode === 'edit' ? 'update' : 'create'} story`)
-      } else {
-        toast.error('An unknown error occurred')
-      }
+      toast.error(
+        error instanceof Error && error.message
+          ? error.message
+          : `Failed to ${mode === 'edit' ? 'update' : 'create'} story`
+      )
     }
   }
 
@@ -193,37 +204,46 @@ export function StoryForm({ mode = 'create', language, storyId, initialData }: S
   const statusConfig = storyStatusConfig[formData.status]
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6" noValidate>
       <FormSection title="Story Information" description={isReadOnly ? 'Story details' : 'Add story details'}>
-        <div className="space-y-2">
-          <Label htmlFor={`title-${language}`}>Title *</Label>
-          <Input
-            id={`title-${language}`}
-            value={formData.title[language]}
-            onChange={(e) => handleTitleChange(e.target.value)}
-            placeholder={language === 'en' ? 'Enter story title' : 'Өгүүллэгийн нэр'}
-            required={!isReadOnly}
-            disabled={isReadOnly}
-          />
-          {fieldErrors['title.en'] && <p className="text-xs text-destructive">{fieldErrors['title.en']}</p>}
-        </div>
+        <FormField
+          id={`title-${language}`}
+          label={language === 'en' ? 'Title (English)' : 'Title (Mongolian)'}
+          required={language === 'en' && !isReadOnly}
+          error={language === 'en' ? fieldErrors['title.en'] : undefined}
+        >
+          {(c) => (
+            <Input
+              {...c}
+              value={formData.title[language]}
+              onChange={(e) => handleTitleChange(e.target.value)}
+              placeholder={language === 'en' ? 'Enter story title' : 'Өгүүллэгийн нэр'}
+              disabled={isReadOnly}
+            />
+          )}
+        </FormField>
 
-        <div className="space-y-2">
-          <Label htmlFor="slug">Slug *</Label>
-          <Input
-            id="slug"
-            value={formData.slug}
-            onChange={(e) => handleSlugChange(e.target.value)}
-            placeholder="story-url-slug"
-            disabled={isReadOnly}
-          />
-          <p className="text-xs text-muted-foreground">URL-friendly, kebab-case. Auto-generated from title.</p>
-          {fieldErrors.slug && <p className="text-xs text-destructive">{fieldErrors.slug}</p>}
-        </div>
+        <FormField
+          id="slug"
+          label="Slug"
+          required={!isReadOnly}
+          error={fieldErrors.slug}
+          description="URL-friendly, kebab-case. Follows the English title until you edit it."
+        >
+          {(c) => (
+            <Input
+              {...c}
+              value={formData.slug}
+              onChange={(e) => handleSlugChange(e.target.value)}
+              placeholder="story-url-slug"
+              disabled={isReadOnly}
+            />
+          )}
+        </FormField>
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="type">Type *</Label>
+            <Label htmlFor="type">Type<span className="text-destructive" aria-hidden="true">*</span></Label>
             <Select
               value={formData.type}
               onValueChange={(value) => setFormData((prev) => ({ ...prev, type: value as StoryType }))}
@@ -281,7 +301,7 @@ export function StoryForm({ mode = 'create', language, storyId, initialData }: S
         <div className="space-y-2">
           <Label>Status</Label>
           <div>
-            <Badge variant={statusConfig?.variant ?? 'outline'}>{statusConfig?.label ?? formData.status}</Badge>
+            <StatusBadge tone={statusConfig?.tone ?? 'neutral'}>{statusConfig?.label ?? formData.status}</StatusBadge>
           </div>
           <p className="text-xs text-muted-foreground">
             Use the Publish / Unpublish action from the stories list to change this.
@@ -293,17 +313,22 @@ export function StoryForm({ mode = 'create', language, storyId, initialData }: S
         title="Featured Image"
         description={isReadOnly ? 'Story featured image' : 'Paste an image URL to use as the featured image'}
       >
-        <div className="space-y-2">
-          <Label htmlFor="featuredImage">Image URL</Label>
-          <Input
-            id="featuredImage"
-            value={formData.featuredImage}
-            onChange={(e) => setFormData((prev) => ({ ...prev, featuredImage: e.target.value }))}
-            placeholder="https://example.com/image.jpg"
-            disabled={isReadOnly}
-          />
-        </div>
-        {formData.featuredImage && (
+        <FormField id="featuredImage" label="Image URL" error={fieldErrors.featuredImage}>
+          {(c) => (
+            <Input
+              {...c}
+              type="url"
+              value={formData.featuredImage}
+              onChange={(e) => {
+                setFormData((prev) => ({ ...prev, featuredImage: e.target.value }))
+                if (fieldErrors.featuredImage) setFieldErrors((prev) => ({ ...prev, featuredImage: '' }))
+              }}
+              placeholder="https://example.com/image.jpg"
+              disabled={isReadOnly}
+            />
+          )}
+        </FormField>
+        {formData.featuredImage && !fieldErrors.featuredImage && /^https?:\/\//i.test(formData.featuredImage) && (
           <div className="relative w-full max-w-xs aspect-video overflow-hidden rounded-lg border bg-muted">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={formData.featuredImage} alt="Featured preview" className="object-cover w-full h-full" />
@@ -313,7 +338,7 @@ export function StoryForm({ mode = 'create', language, storyId, initialData }: S
 
       {isTestimonialLike && (
         <FormSection title="Author" description="Shown for testimonials and profile stories">
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor={`author-${language}`}>Author Name</Label>
               <Input
@@ -340,7 +365,7 @@ export function StoryForm({ mode = 'create', language, storyId, initialData }: S
       )}
 
       <FormSection title="Impact Summary" description="Aggregate ride impact numbers for this story">
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="space-y-2">
             <Label htmlFor="riders">Riders</Label>
             <Input
@@ -396,11 +421,14 @@ export function StoryForm({ mode = 'create', language, storyId, initialData }: S
         <BlockEditor blocks={blocks} onChange={setBlocks} disabled={isReadOnly} />
       </FormSection>
 
-      <div className="sticky bottom-0 z-10 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <div className="sticky bottom-0 z-10 border-t bg-background">
         <div className="flex items-center gap-3 py-4">
           <Button type="submit" disabled={isSubmitting || isReadOnly} className="min-w-[160px]">
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            <Save className="mr-2 h-4 w-4" />
+            {isSubmitting ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" aria-hidden="true" />
+            )}
             {mode === 'create' ? 'Create Story' : 'Update Story'}
           </Button>
           <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting}>

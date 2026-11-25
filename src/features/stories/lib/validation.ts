@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { isValidSlug } from './slugify'
 import { validateBlocks } from './blocks'
+import { optionalUrl } from '@/lib/validation/rules'
 import type { StoryBlock } from '../types'
 
 export const storyFormSchema = z.object({
@@ -27,7 +28,7 @@ export const storyFormSchema = z.object({
   excerpt: z
     .object({ en: z.string().trim().optional().default(''), mn: z.string().trim().optional().default('') })
     .optional(),
-  featuredImage: z.string().trim().optional(),
+  featuredImage: optionalUrl.optional(),
   impactSummary: z.object({
     riders: z.number().min(0, 'Must be 0 or greater').optional(),
     kilometers: z.number().min(0, 'Must be 0 or greater').optional(),

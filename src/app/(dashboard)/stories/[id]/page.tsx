@@ -7,8 +7,9 @@ import { StoryForm } from '@/features/stories/components/story-form'
 import { GET_STORY_BY_ID } from '@/graphql/queries/stories'
 import type { Story } from '@/features/stories/types'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle, BookOpen } from 'lucide-react'
-import { PageHeader, EmptyState } from '@/components/admin'
+import { AlertCircle } from 'lucide-react'
+import { Skeleton } from '@/components/ui/skeleton'
+import { PageHeader } from '@/components/admin'
 
 interface GetStoryByIdData {
   getStory: Story
@@ -26,15 +27,17 @@ export default function StoryEditPage() {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto p-6">
-        <EmptyState icon={BookOpen} title="Loading story…" className="py-20" />
+      <div className="max-w-4xl mx-auto space-y-6" role="status" aria-label="Loading story">
+        <Skeleton className="h-9 w-64" />
+        <Skeleton className="h-64" />
+        <Skeleton className="h-48" />
       </div>
     )
   }
 
   if (error || !data?.getStory) {
     return (
-      <div className="space-y-4 max-w-4xl mx-auto p-6">
+      <div className="space-y-6 max-w-4xl mx-auto">
         <PageHeader title="Edit Story" backHref="/stories" />
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -48,7 +51,7 @@ export default function StoryEditPage() {
   const title = typeof story.title === 'string' ? story.title : story.title?.en || 'Edit Story'
 
   return (
-    <div className="space-y-5 max-w-4xl mx-auto p-6">
+    <div className="space-y-6 max-w-4xl mx-auto">
       <PageHeader
         title={title}
         description="Update story information and content"
@@ -56,7 +59,7 @@ export default function StoryEditPage() {
         lang={language}
         onLangChange={setLanguage}
       />
-      <StoryForm mode="edit" language={language} storyId={storyId} initialData={story} />
+      <StoryForm mode="edit" language={language} onLanguageChange={setLanguage} storyId={storyId} initialData={story} />
     </div>
   )
 }

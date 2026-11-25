@@ -17,6 +17,7 @@ export function QuoteFields({ block, onChange, disabled }: QuoteFieldsProps) {
       <div className="space-y-1.5">
         <Label>Quote Text *</Label>
         <Textarea
+          aria-label="Quote Text"
           value={block.text}
           onChange={(e) => onChange({ ...block, text: e.target.value })}
           disabled={disabled}
@@ -27,6 +28,7 @@ export function QuoteFields({ block, onChange, disabled }: QuoteFieldsProps) {
         <div className="space-y-1.5">
           <Label>Author</Label>
           <Input
+            aria-label="Author"
             value={block.author ?? ''}
             onChange={(e) => onChange({ ...block, author: e.target.value })}
             disabled={disabled}
@@ -35,6 +37,7 @@ export function QuoteFields({ block, onChange, disabled }: QuoteFieldsProps) {
         <div className="space-y-1.5">
           <Label>Meta (role, location, etc.)</Label>
           <Input
+            aria-label="Meta (role, location, etc.)"
             value={block.meta ?? ''}
             onChange={(e) => onChange({ ...block, meta: e.target.value })}
             disabled={disabled}
