@@ -45,10 +45,10 @@ export default function EditRangerProfilePage() {
 
   if (error || !ranger) {
     return (
-      <div className="space-y-4 max-w-4xl mx-auto">
-        <PageHeader title="Edit Ranger Profile" backHref="/ranger-profiles" />
+      <div className="mx-auto max-w-4xl space-y-6">
+        <PageHeader title="Edit ranger" backHref="/ranger-profiles" />
         <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
+          <AlertCircle className="h-4 w-4" aria-hidden="true" />
           <AlertDescription>{error?.message || 'Ranger not found'}</AlertDescription>
         </Alert>
       </div>
@@ -56,7 +56,7 @@ export default function EditRangerProfilePage() {
   }
 
   return (
-    <div className="space-y-5 max-w-4xl mx-auto">
+    <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader
         title={ranger.name}
         description="Update ranger profile information"

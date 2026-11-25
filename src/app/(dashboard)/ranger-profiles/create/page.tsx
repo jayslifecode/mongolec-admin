@@ -5,10 +5,10 @@ import { PageHeader } from '@/components/admin'
 
 export default function CreateRangerProfilePage() {
   return (
-    <div className="space-y-5 max-w-4xl mx-auto">
+    <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader
-        title="Add Ranger Profile"
-        description="Add a new ranger profile"
+        title="Add ranger"
+        description="Add a ranger to the Rally for Rangers website"
         backHref="/ranger-profiles"
       />
       <RangerProfileForm mode="create" />
