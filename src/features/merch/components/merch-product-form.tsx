@@ -24,7 +24,8 @@ import {
   MultiImageUploadRef,
 } from "@/components/multi-image-upload";
 import { Loader2, Save } from "lucide-react";
-import { FormSection } from "@/components/admin";
+import { FormField, FormSection } from "@/components/admin";
+import { validateProductForm } from "../lib/product-schema";
 import { VariantBuilder } from "./variant-builder";
 import {
   CREATE_MERCH_PRODUCT,
@@ -59,6 +60,8 @@ interface Variant {
 interface MerchProductFormProps {
   mode?: "create" | "edit" | "view";
   language: "en" | "mn";
+  /** Lets the form switch to English when the English name is missing. */
+  onLanguageChange?: (language: "en" | "mn") => void;
   productId?: string;
   initialData?: MerchProduct;
 }
@@ -80,6 +83,7 @@ function parseGalleryImages(raw: unknown): string[] {
 export function MerchProductForm({
   mode = "create",
   language,
+  onLanguageChange,
   productId,
   initialData,
 }: MerchProductFormProps) {
@@ -92,7 +96,10 @@ export function MerchProductForm({
     getMerchCategories: Array<{ id: string; name: string | { en?: string; mn?: string }; slug: string }>;
   }>(GET_MERCH_CATEGORIES, { variables: { language } });
   const categories = categoriesData?.getMerchCategories ?? [];
-  const isSubmitting = isCreating || isUpdating;
+  const [isWorking, setIsWorking] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  // Uploads count as saving.
+  const isSubmitting = isCreating || isUpdating || isWorking;
   const isReadOnly = mode === "view";
 
   const featuredImageRef = useRef<SingleImageUploadRef>(null);
@@ -108,12 +115,12 @@ export function MerchProductForm({
     name: mode !== "create" && initialData ? normalizeLangField(initialData.name) : { en: "", mn: "" },
     description: mode !== "create" && initialData ? normalizeLangField(initialData.description) : { en: "", mn: "" },
     shortDescription: mode !== "create" && initialData ? normalizeLangField(initialData.shortDescription) : { en: "", mn: "" },
-    price: mode !== "create" && initialData ? initialData.price || 0 : 0,
-    compareAtPrice: mode !== "create" && initialData ? initialData.compareAtPrice || 0 : 0,
+    price: mode !== "create" && initialData ? String(initialData.price ?? "") : "",
+    compareAtPrice: mode !== "create" && initialData && initialData.compareAtPrice ? String(initialData.compareAtPrice) : "",
     currency: mode !== "create" && initialData ? initialData.currency || "USD" : "USD",
     status: mode !== "create" && initialData ? initialData.status || "DRAFT" : "DRAFT",
-    inventory: mode !== "create" && initialData ? initialData.inventory || 0 : 0,
-    minStock: mode !== "create" && initialData ? initialData.minStock || 0 : 0,
+    inventory: mode !== "create" && initialData ? String(initialData.inventory ?? 0) : "0",
+    minStock: mode !== "create" && initialData && initialData.minStock ? String(initialData.minStock) : "",
     trackInventory: mode !== "create" && initialData ? initialData.trackInventory ?? true : true,
     isFeatured: mode !== "create" && initialData ? initialData.isFeatured ?? false : false,
     hasVariants: mode !== "create" && initialData ? initialData.hasVariants ?? false : false,
@@ -138,12 +145,12 @@ export function MerchProductForm({
         name: normalizeLangField(initialData.name),
         description: normalizeLangField(initialData.description),
         shortDescription: normalizeLangField(initialData.shortDescription),
-        price: initialData.price || 0,
-        compareAtPrice: initialData.compareAtPrice || 0,
+        price: String(initialData.price ?? ""),
+        compareAtPrice: initialData.compareAtPrice ? String(initialData.compareAtPrice) : "",
         currency: initialData.currency || "USD",
         status: initialData.status || "DRAFT",
-        inventory: initialData.inventory || 0,
-        minStock: initialData.minStock || 0,
+        inventory: String(initialData.inventory ?? 0),
+        minStock: initialData.minStock ? String(initialData.minStock) : "",
         trackInventory: initialData.trackInventory ?? true,
         isFeatured: initialData.isFeatured ?? false,
         hasVariants: initialData.hasVariants ?? false,
@@ -180,6 +187,23 @@ export function MerchProductForm({
 
     if (isReadOnly) return;
 
+    const { fieldErrors, data: parsed } = validateProductForm({
+      nameEn: formData.name.en,
+      price: formData.price,
+      compareAtPrice: formData.compareAtPrice,
+      hasOptions: options.length > 0,
+      trackInventory: formData.trackInventory,
+      inventory: formData.inventory,
+      minStock: formData.minStock,
+      variants,
+    });
+    setErrors(fieldErrors);
+    if (!parsed) {
+      focusFirstInvalid(fieldErrors);
+      return;
+    }
+
+    setIsWorking(true);
     try {
       // Upload featured image first if one was selected
       let featuredImageUrl: string | null = initialData?.featuredImage || null;
@@ -200,7 +224,7 @@ export function MerchProductForm({
 
       // Prepare variant data for GraphQL
       const variantsInput = variants.map((v) => ({
-        sku: v.sku,
+        sku: v.sku.trim(),
         title: v.title,
         optionValues: v.optionValues,
         price: v.price,
@@ -229,12 +253,12 @@ export function MerchProductForm({
         name: formData.name,
         description: formData.description,
         shortDescription: formData.shortDescription,
-        price: formData.price,
-        compareAtPrice: formData.compareAtPrice || null,
+        price: parsed.price,
+        compareAtPrice: parsed.compareAtPrice,
         currency: formData.currency,
-        inventory: formData.inventory,
+        inventory: parsed.inventory,
         trackInventory: formData.trackInventory,
-        minStock: formData.minStock || null,
+        minStock: parsed.minStock,
         status: formData.status,
         isFeatured: formData.isFeatured,
         featuredImage: featuredImageUrl,
@@ -268,41 +292,66 @@ export function MerchProductForm({
 
       router.push("/merch");
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        toast.error(
-          error.message ||
-            `Failed to ${mode === "edit" ? "update" : "create"} product`
-        );
-      } else {
-        toast.error("An unknown error occurred");
-      }
+      toast.error(
+        error instanceof Error && error.message
+          ? error.message
+          : `Failed to ${mode === "edit" ? "update" : "create"} product`
+      );
+    } finally {
+      setIsWorking(false);
     }
   };
 
+  // Moves focus to the first invalid field, switching to English when the English name is the problem.
+  const focusFirstInvalid = (fieldErrors: Record<string, string>) => {
+    const order = ["name", "price", "compareAtPrice", "inventory", "minStock"];
+    const first = order.find((key) => fieldErrors[key]);
+    let targetId: string | null = null;
+    if (first === "name") {
+      if (language !== "en") onLanguageChange?.("en");
+      targetId = "name-en";
+    } else if (first) {
+      targetId = first;
+    } else {
+      const variantKey = Object.keys(fieldErrors).find((k) => k.startsWith("variant."));
+      if (variantKey) {
+        const [, index, field] = variantKey.split(".");
+        targetId = `variant-${index}-${field}`;
+      }
+    }
+    if (targetId) setTimeout(() => document.getElementById(targetId)?.focus(), 0);
+  };
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-5" noValidate>
       <FormSection
         title="Product Information"
         description={isReadOnly ? "Product details" : "Add product details"}
       >
-          <div className="space-y-2">
-            <Label htmlFor={`name-${language}`}>Product Name *</Label>
-            <Input
-              id={`name-${language}`}
-              value={formData.name[language]}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  name: { ...prev.name, [language]: e.target.value },
-                }))
-              }
-              placeholder={
-                language === "en" ? "Enter product name" : "Бүтээгдэхүүний нэр"
-              }
-              required={!isReadOnly}
-              disabled={isReadOnly}
-            />
-          </div>
+          <FormField
+            id={`name-${language}`}
+            label="Product name"
+            required={language === "en" && !isReadOnly}
+            error={language === "en" ? errors.name : undefined}
+            description={language === "mn" ? "The English name is required; Mongolian is optional." : undefined}
+          >
+            {(control) => (
+              <Input
+                {...control}
+                value={formData.name[language]}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    name: { ...prev.name, [language]: e.target.value },
+                  }))
+                }
+                placeholder={
+                  language === "en" ? "Enter product name" : "Бүтээгдэхүүний нэр"
+                }
+                disabled={isReadOnly}
+              />
+            )}
+          </FormField>
 
           <div className="space-y-2">
             <Label htmlFor={`description-${language}`}>Description</Label>
@@ -426,49 +475,48 @@ export function MerchProductForm({
             : "Set product pricing"
         }
       >
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor="price">Price *</Label>
-              <Input
-                id="price"
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.price}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    price: parseFloat(e.target.value) || 0,
-                  }))
-                }
-                required
-              />
-            </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <FormField id="price" label="Price" required={!isReadOnly} error={errors.price}>
+              {(control) => (
+                <Input
+                  {...control}
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  value={formData.price}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, price: e.target.value }))}
+                  disabled={isReadOnly}
+                />
+              )}
+            </FormField>
 
-            <div className="space-y-2">
-              <Label htmlFor="compareAtPrice">Compare at Price</Label>
-              <Input
-                id="compareAtPrice"
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.compareAtPrice}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    compareAtPrice: parseFloat(e.target.value) || 0,
-                  }))
-                }
-              />
-            </div>
+            <FormField
+              id="compareAtPrice"
+              label="Compare at price"
+              error={errors.compareAtPrice}
+              description="Optional. The original price, shown crossed out."
+            >
+              {(control) => (
+                <Input
+                  {...control}
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  value={formData.compareAtPrice}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, compareAtPrice: e.target.value }))}
+                  disabled={isReadOnly}
+                />
+              )}
+            </FormField>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label htmlFor="currency">Currency</Label>
               <Select
                 value={formData.currency}
                 onValueChange={(value) =>
                   setFormData((prev) => ({ ...prev, currency: value }))
                 }
+                disabled={isReadOnly}
               >
                 <SelectTrigger id="currency">
                   <SelectValue />
@@ -487,18 +535,24 @@ export function MerchProductForm({
       <VariantBuilder
         options={options}
         variants={variants}
-        basePrice={formData.price}
+        basePrice={Number(formData.price) || 0}
         language={language}
         onOptionsChange={setOptions}
         onVariantsChange={setVariants}
+        errors={errors}
       />
+      {errors.variants && (
+        <p role="alert" className="text-destructive text-sm">
+          {errors.variants}
+        </p>
+      )}
 
       {/* Inventory - Only show if no variants */}
       {options.length === 0 && (
         <FormSection title="Inventory">
             <div className="flex items-center justify-between rounded-lg border border-border/50 px-4 py-3">
               <div>
-                <p className="text-sm font-medium">Track Inventory</p>
+                <Label htmlFor="trackInventory" className="text-sm font-medium">Track inventory</Label>
                 <p className="text-xs text-muted-foreground mt-0.5">Enable inventory tracking for this product</p>
               </div>
               <Switch
@@ -511,46 +565,44 @@ export function MerchProductForm({
             </div>
 
             {formData.trackInventory && (
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="inventory">Current Stock *</Label>
-                  <Input
-                    id="inventory"
-                    type="number"
-                    min="0"
-                    value={formData.inventory}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        inventory: parseInt(e.target.value) || 0,
-                      }))
-                    }
-                    required
-                  />
-                </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FormField id="inventory" label="Current stock" required error={errors.inventory}>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="number"
+                      inputMode="numeric"
+                      step="1"
+                      value={formData.inventory}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, inventory: e.target.value }))}
+                    />
+                  )}
+                </FormField>
 
-                <div className="space-y-2">
-                  <Label htmlFor="minStock">Minimum Stock</Label>
-                  <Input
-                    id="minStock"
-                    type="number"
-                    min="0"
-                    value={formData.minStock}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        minStock: parseInt(e.target.value) || 0,
-                      }))
-                    }
-                  />
-                </div>
+                <FormField
+                  id="minStock"
+                  label="Minimum stock"
+                  error={errors.minStock}
+                  description="Optional. Below this the product shows as low stock."
+                >
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="number"
+                      inputMode="numeric"
+                      step="1"
+                      value={formData.minStock}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, minStock: e.target.value }))}
+                    />
+                  )}
+                </FormField>
               </div>
             )}
         </FormSection>
       )}
 
       <FormSection title="Product Settings">
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label htmlFor="status">Status</Label>
             <Select
               value={formData.status}
@@ -599,7 +651,7 @@ export function MerchProductForm({
 
           <div className="flex items-center justify-between rounded-lg border border-border/50 px-4 py-3">
             <div>
-              <p className="text-sm font-medium">Featured Product</p>
+              <Label htmlFor="isFeatured" className="text-sm font-medium">Featured product</Label>
               <p className="text-xs text-muted-foreground mt-0.5">Display this product on the homepage</p>
             </div>
             <Switch
@@ -617,7 +669,7 @@ export function MerchProductForm({
         description="Attach discounts to apply promotional pricing to this product"
       >
         <div className="space-y-2">
-          <Label>Applied Discounts</Label>
+          <Label id="applied-discounts-label">Applied discounts</Label>
           <AutocompleteSelectFilter
             value={discountIds}
             onChange={(v) => setDiscountIds(Array.isArray(v) ? v : v ? [v] : [])}
@@ -636,11 +688,14 @@ export function MerchProductForm({
         </div>
       </FormSection>
 
-      <div className="sticky bottom-0 z-10 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <div className="sticky bottom-0 z-10 border-t bg-background">
         <div className="flex items-center gap-3 py-4">
           <Button type="submit" disabled={isSubmitting} className="min-w-[160px]">
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            <Save className="mr-2 h-4 w-4" />
+            {isSubmitting ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" aria-hidden="true" />
+            )}
             {mode === "create" ? "Create Product" : "Update Product"}
           </Button>
           <Button

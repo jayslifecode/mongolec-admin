@@ -3,7 +3,8 @@
 import { useParams } from 'next/navigation'
 import { useQuery } from '@apollo/client/react'
 import { MerchCategoryForm } from '@/features/merch/components/merch-category-form'
-import { GET_MERCH_CATEGORY_BY_ID } from '@/graphql/queries/merch'
+import { GET_MERCH_CATEGORY_BY_ID, GET_MERCH_CATEGORY_MN } from '@/graphql/queries/merch'
+import { mergeLocalized } from '@/features/merch/lib/localized'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PageHeader } from '@/components/admin'
 import { QueryErrorState } from '@/components/query-error-state'
@@ -21,11 +22,27 @@ export default function MerchCategoryEditPage() {
   const params = useParams()
   const categoryId = params.id as string
 
-  const { data, loading, error, refetch } = useQuery<GetMerchCategoryByIdData>(GET_MERCH_CATEGORY_BY_ID, {
+  // The API returns one language per request. Fetch both so saving never overwrites the other language.
+  const en = useQuery<GetMerchCategoryByIdData>(GET_MERCH_CATEGORY_BY_ID, {
+    variables: { id: categoryId, language: 'en' },
+    skip: !categoryId,
+  })
+  const mn = useQuery<GetMerchCategoryByIdData>(GET_MERCH_CATEGORY_MN, {
     variables: { id: categoryId },
     skip: !categoryId,
   })
-  const category = data?.getMerchCategoryById
+  const loading = en.loading || mn.loading
+  const error = en.error ?? mn.error
+  const enCategory = en.data?.getMerchCategoryById
+  const mnCategory = mn.data?.getMerchCategoryById
+  const category = enCategory
+    ? {
+        ...enCategory,
+        name: mergeLocalized(enCategory.name as string, mnCategory?.name as string | undefined),
+        description: mergeLocalized(enCategory.description as string | undefined, mnCategory?.description as string | undefined),
+      }
+    : null
+  const refetch = () => Promise.all([en.refetch(), mn.refetch()])
 
   return (
     <div className="space-y-6 max-w-3xl mx-auto">

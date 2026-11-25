@@ -210,3 +210,25 @@ export const GET_MERCH_DISCOUNT_BY_ID = gql`
     }
   }
 `
+
+/** The API returns one language per request; these fetch the Mongolian text so edit forms can hold both. */
+export const GET_MERCH_PRODUCT_MN = gql`
+  query GetMerchProductMn($id: ID!) {
+    getMerchProductById(id: $id, language: "mn") {
+      id
+      name
+      description
+      shortDescription
+    }
+  }
+`
+
+export const GET_MERCH_CATEGORY_MN = gql`
+  query GetMerchCategoryMn($id: ID!) {
+    getMerchCategoryById(id: $id, language: "mn") {
+      id
+      name
+      description
+    }
+  }
+`
