@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useQuery } from '@apollo/client/react'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { SegmentedControl } from '@/components/admin/segmented-control'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { MapPin, Search, Plus } from 'lucide-react'
@@ -94,15 +94,14 @@ export default function ParkPartnersPage() {
 
       <StatBar stats={stats} loading={isInitialLoad} />
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <div>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <TabsList className="h-9">
-            {STATUS_TABS.map((tab) => (
-              <TabsTrigger key={tab.value} value={tab.value} className="px-4 text-xs">
-                {tab.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+          <SegmentedControl
+            ariaLabel="Filter park partners by status"
+            value={activeTab}
+            onValueChange={setActiveTab}
+            options={STATUS_TABS}
+          />
 
           <div className="flex shrink-0 gap-2">
             <Select value={countryFilter ?? 'all'} onValueChange={(v) => setCountryFilter(v === 'all' ? undefined : v)}>
@@ -150,7 +149,7 @@ export default function ParkPartnersPage() {
             <RangersTable rangers={visiblePartners} loading={isInitialLoad} onActionComplete={() => refetch()} />
           )}
         </div>
-      </Tabs>
+      </div>
     </div>
   )
 }

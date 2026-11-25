@@ -4,7 +4,7 @@ import { type ReactNode } from 'react'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { SegmentedControl } from './segmented-control'
 import { cn } from '@/lib/utils'
 
 interface PageHeaderProps {
@@ -51,12 +51,12 @@ export function PageHeader({
 
       <div className="flex items-center gap-2 shrink-0">
         {lang && onLangChange && (
-          <Tabs value={lang} onValueChange={(v) => onLangChange(v as 'en' | 'mn')}>
-            <TabsList className="h-8" aria-label="Content language">
-              <TabsTrigger value="en" className="text-xs px-3 h-6" aria-label="English">EN</TabsTrigger>
-              <TabsTrigger value="mn" className="text-xs px-3 h-6" aria-label="Mongolian">МН</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <SegmentedControl
+            ariaLabel="Content language"
+            value={lang}
+            onValueChange={onLangChange}
+            options={[{ value: 'en', label: 'EN', ariaLabel: 'English' }, { value: 'mn', label: 'МН', ariaLabel: 'Mongolian' }] as const}
+          />
         )}
         {actions}
       </div>

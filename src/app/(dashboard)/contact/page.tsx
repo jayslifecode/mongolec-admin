@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { SegmentedControl } from '@/components/admin/segmented-control'
 import { useQuery } from '@apollo/client/react'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Mail } from 'lucide-react'
 import { ContactMessagesTable } from '@/features/contact/components/contact-messages-table'
 import { GET_CONTACT_MESSAGES } from '@/graphql/queries/contact'
@@ -57,14 +57,13 @@ export default function ContactPage() {
 
       <StatBar stats={stats} loading={isInitialLoad} />
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="h-9">
-          {STATUS_TABS.map((tab) => (
-            <TabsTrigger key={tab.value} value={tab.value} className="px-4 text-xs">
-              {tab.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+      <div>
+        <SegmentedControl
+          ariaLabel="Filter messages by status"
+          value={activeTab}
+          onValueChange={setActiveTab}
+          options={STATUS_TABS}
+        />
 
         <div className="mt-4">
           {error && !data ? (
@@ -83,7 +82,7 @@ export default function ContactPage() {
             <ContactMessagesTable messages={messages} loading={isInitialLoad} onActionComplete={() => refetch()} />
           )}
         </div>
-      </Tabs>
+      </div>
     </div>
   )
 }

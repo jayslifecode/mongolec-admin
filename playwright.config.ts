@@ -13,6 +13,8 @@ export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
   retries: 1,
+  // The local dev server compiles each page on first visit.
+  timeout: 60_000,
   workers: 3,
   reporter: [['list']],
   preserveOutput: 'failures-only',

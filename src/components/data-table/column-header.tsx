@@ -40,6 +40,13 @@ export function DataTableColumnHeader<TData, TValue>({
             variant="ghost"
             size="sm"
             className="h-8 w-8 p-0 hover:bg-transparent"
+            aria-label={
+              column.getIsSorted() === 'asc'
+                ? `Sort ${title}: currently ascending`
+                : column.getIsSorted() === 'desc'
+                  ? `Sort ${title}: currently descending`
+                  : `Sort ${title}`
+            }
           >
             {column.getIsSorted() === 'desc' && (
               <ArrowDown className="h-4 w-4" />

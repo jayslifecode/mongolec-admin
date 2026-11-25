@@ -1,12 +1,12 @@
 'use client'
 
 import { useState } from 'react'
+import { SegmentedControl } from '@/components/admin/segmented-control'
 import { useForm, type FieldErrors } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Loader2, Save } from 'lucide-react'
 import { useMutation } from '@apollo/client/react'
 import { CREATE_NEWS_CATEGORY, UPDATE_NEWS_CATEGORY } from '@/graphql/mutations/news'
@@ -126,12 +126,12 @@ export function NewsCategoryForm({ mode = 'create', categoryId, initialData }: N
         title="Category Information"
         description="Name, slug, and description for this category"
         actions={
-          <Tabs value={activeLanguage} onValueChange={(v) => setActiveLanguage(v as 'en' | 'mn')}>
-            <TabsList className="h-7 text-xs" aria-label="Content language">
-              <TabsTrigger value="en" className="text-xs px-2.5 h-5.5">English</TabsTrigger>
-              <TabsTrigger value="mn" className="text-xs px-2.5 h-5.5">Монгол</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <SegmentedControl
+            ariaLabel="Content language"
+            value={activeLanguage}
+            onValueChange={setActiveLanguage}
+            options={[{ value: 'en', label: 'English' }, { value: 'mn', label: 'Монгол', ariaLabel: 'Mongolian' }] as const}
+          />
         }
       >
         {hasHiddenError && (
