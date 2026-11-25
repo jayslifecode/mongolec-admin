@@ -25,7 +25,7 @@ export function BulkSelectionCount({
     <TooltipProvider>
       <div className="flex items-center gap-2">
         <span className="text-sm text-muted-foreground">
-          {selectedRowsCount} мөр сонгосон
+          {selectedRowsCount} selected
         </span>
         <Tooltip>
           <TooltipTrigger asChild>

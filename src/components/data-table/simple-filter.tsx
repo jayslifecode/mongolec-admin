@@ -270,7 +270,7 @@ export function SimpleFilter<TData>({
           variant="outline"
           size="sm"
           className={cn(
-            'h-8 justify-between border-dashed px-2 transition-all duration-200',
+            'h-8 justify-between border-dashed px-2 transition-colors',
             'hover:bg-muted/60 hover:border-muted-foreground/50',
             fullWidth ? 'w-full' : 'w-auto',
             isFiltered && 'border-primary bg-primary/5 text-primary hover:bg-primary/10'

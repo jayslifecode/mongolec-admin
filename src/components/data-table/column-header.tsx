@@ -56,21 +56,21 @@ export function DataTableColumnHeader<TData, TValue>({
             className="flex items-center gap-2"
           >
             <ArrowUp className="h-3.5 w-3.5" />
-            Өсөх дарааллаар
+            Sort ascending
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={() => column.toggleSorting(true)}
             className="flex items-center gap-2"
           >
             <ArrowDown className="h-3.5 w-3.5" />
-            Буурах дарааллаар
+            Sort descending
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={() => column.clearSorting()}
             className="flex items-center gap-2"
           >
             <ArrowUpDown className="h-3.5 w-3.5" />
-            Цуцлах
+            Clear sort
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

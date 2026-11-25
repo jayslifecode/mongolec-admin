@@ -321,7 +321,7 @@ export function DataTableFilterList<TData>({
           className="h-8 px-2 text-red-500 hover:bg-red-100 hover:text-red-500"
         >
           <Trash2 className="mr-2 h-4 w-4" />
-          Цэвэрлэх
+          Clear
         </Button>
       )}
     </div>
@@ -369,8 +369,8 @@ export function DataTableFilterSummary<TData>({
         } else if (filter.type === 'boolean') {
           displayValue =
             value === true || value === 'true'
-              ? filter.trueLabel || 'Тийм'
-              : filter.falseLabel || 'Үгүй'
+              ? filter.trueLabel || 'Yes'
+              : filter.falseLabel || 'No'
         } else if (filter.type === 'date-range') {
           if (typeof value === 'object' && value !== null && 'from' in value && 'to' in value) {
             const dateRange = value as { from: Date; to: Date }
@@ -438,7 +438,7 @@ export function DataTableFilterSummary<TData>({
         className="h-6 px-2 text-xs text-red-500 hover:bg-red-50 hover:text-red-600"
       >
         <Trash2 />
-        Цэвэрлэх
+        Clear
       </Button>
     </div>
   )

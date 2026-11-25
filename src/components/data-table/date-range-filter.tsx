@@ -37,7 +37,7 @@ type DateRangeValue =
 export function DataTableDateRangeFilter<TData, TValue>({
   column,
   title,
-  placeholder = 'Огноо сонгох...',
+  placeholder = 'Pick a date…',
   value: externalValue,
   onValueChange: externalOnValueChange,
   maxRangeDays,
@@ -148,7 +148,7 @@ export function DataTableDateRangeFilter<TData, TValue>({
           size={buttonSize ?? 'sm'}
           className={cn(
             !buttonClassName && 'h-8 min-w-[160px] border-dashed font-normal',
-            'justify-between text-left transition-all duration-200',
+            'justify-between text-left transition-colors',
             'hover:bg-muted/60 hover:border-muted-foreground/50',
             hasValue && 'border-primary bg-primary/5 text-primary hover:bg-primary/10',
             !hasValue && !buttonClassName && 'text-muted-foreground',
@@ -189,11 +189,11 @@ export function DataTableDateRangeFilter<TData, TValue>({
       >
         <div className="p-3">
           <div className="mb-3">
-            <h4 className="text-sm font-medium">{title || 'Огнооны муж сонгох'}</h4>
+            <h4 className="text-sm font-medium">{title || 'Select a date range'}</h4>
             <p className="text-muted-foreground text-xs">
               {date?.from && !date?.to
-                ? 'Дуусах огноо сонгоно уу...'
-                : 'Эхлэх болон дуусах огнооны интервал сонгоно уу'}
+                ? 'Select an end date…'
+                : 'Select a start and an end date'}
             </p>
           </div>
           <Calendar
@@ -239,10 +239,10 @@ export function DataTableDateRangeFilter<TData, TValue>({
               className="text-muted-foreground hover:text-foreground"
             >
               <X className="mr-2 h-4 w-4" />
-              Цэвэрлэх
+              Clear
             </Button>
             <Button size="sm" onClick={() => setOpen(false)} disabled={!hasValue}>
-              Хадгалах
+              Apply
             </Button>
           </div>
         </div>

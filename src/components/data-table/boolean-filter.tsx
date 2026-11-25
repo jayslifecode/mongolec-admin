@@ -32,10 +32,10 @@ type BooleanFilterProps<TData, TValue> = {
 export function DataTableBooleanFilter<TData, TValue>({
   column,
   title,
-  placeholder = 'Утга сонгох...',
+  placeholder = 'Select a value…',
   icon: Icon = ToggleLeft,
-  trueLabel = 'Тийм',
-  falseLabel = 'Үгүй',
+  trueLabel = 'Yes',
+  falseLabel = 'No',
   value: externalValue,
   onValueChange: externalOnValueChange,
   variant = 'default',
@@ -98,7 +98,7 @@ export function DataTableBooleanFilter<TData, TValue>({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            'h-8 min-w-[200px] justify-between border-dashed transition-all duration-200',
+            'h-8 min-w-[200px] justify-between border-dashed transition-colors',
             'hover:bg-muted/60 hover:border-muted-foreground/50',
             selectedOption && 'border-primary bg-primary/5 text-primary hover:bg-primary/10'
           )}
@@ -142,7 +142,7 @@ export function DataTableBooleanFilter<TData, TValue>({
         <Command className="rounded-lg">
           <CommandList>
             <CommandEmpty className="text-muted-foreground py-6 text-center text-sm">
-              Сонголт байхгүй
+              No options
             </CommandEmpty>
             <CommandGroup>
               {options.map(option => {

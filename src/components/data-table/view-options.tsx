@@ -21,11 +21,11 @@ export function DataTableViewOptions<TData>({
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm" className="ml-auto h-8 lg:flex">
           <Settings2 className="mr-2 h-4 w-4" />
-          Харах
+          View
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[200px]">
-        <div className="px-2 py-1.5 text-sm font-medium">Багана сонгох</div>
+        <div className="px-2 py-1.5 text-sm font-medium">Toggle columns</div>
         {table
           .getAllColumns()
           .filter(

@@ -95,16 +95,16 @@ export function getCommonPinningStyles<TData>({
   return {
     boxShadow: withBorder
       ? isLastLeftPinnedColumn
-        ? '-4px 0 4px -4px hsl(var(--border)) inset'
+        ? '-4px 0 4px -4px var(--border) inset'
         : isFirstRightPinnedColumn
-          ? '4px 0 4px -4px hsl(var(--border)) inset'
+          ? '4px 0 4px -4px var(--border) inset'
           : undefined
       : undefined,
     left: isPinned === 'left' ? `${column.getStart('left')}px` : undefined,
     right: isPinned === 'right' ? `${column.getAfter('right')}px` : undefined,
     opacity: isPinned ? 0.97 : 1,
     position: isPinned ? 'sticky' : 'relative',
-    background: 'hsl(var(--background))',
+    background: 'var(--background)',
     width: customWidth ?? column.getSize(),
     zIndex: isPinned ? 1 : 0,
   }
@@ -221,8 +221,7 @@ export const createStatusColumn = <T>(
           variant: config.variant,
           className: `
             ${config.className || ''}
-            transition-all duration-200 ease-in-out
-            hover:scale-105 hover:shadow-sm
+            transition-colors
             cursor-default select-none
             flex items-center gap-1.5
             font-medium text-xs px-2.5 py-1
@@ -469,7 +468,7 @@ export const createActionsColumn = <T>(
     React.createElement(
       'div',
       { className: 'flex items-center justify-center w-full h-full' },
-      React.createElement('span', { className: 'font-medium' }, 'Үйлдэл')
+      React.createElement('span', { className: 'font-medium' }, 'Actions')
     ),
   cell: ({ row }) =>
     React.createElement(

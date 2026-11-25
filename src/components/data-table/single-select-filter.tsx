@@ -37,7 +37,7 @@ type DataTableSingleSelectFilterProps<TData, TValue> = {
 export function DataTableSingleSelectFilter<TData, TValue>({
   column,
   title,
-  placeholder = 'Сонгох...',
+  placeholder = 'Select…',
   options,
   value: externalValue,
   onValueChange: externalOnValueChange,
@@ -80,7 +80,7 @@ export function DataTableSingleSelectFilter<TData, TValue>({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            'h-8 min-w-[120px] justify-between border shadow-none transition-all duration-200',
+            'h-8 min-w-[120px] justify-between border shadow-none transition-colors',
             'bg-background hover:bg-muted/60 hover:border-muted-foreground/50',
             fullWidth ? 'w-full' : 'w-auto',
             selectedOption && 'border-primary bg-primary/5 text-primary hover:bg-primary/10'
@@ -127,12 +127,12 @@ export function DataTableSingleSelectFilter<TData, TValue>({
       >
         <Command className="rounded-lg">
           <CommandInput
-            placeholder={`Хайх ${title?.toLowerCase()}...`}
+            placeholder={`Search ${title?.toLowerCase()}...`}
             className="h-9 border-0 focus:ring-0"
           />
           <CommandList className="max-h-64">
             <CommandEmpty className="text-muted-foreground py-6 text-center text-sm">
-              Илэрц олдсонгүй
+              No results
             </CommandEmpty>
             <CommandGroup>
               {options.map(option => {

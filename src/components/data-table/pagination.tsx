@@ -1,4 +1,5 @@
 import React from 'react'
+import { paginationSummary } from '@/lib/utils/pagination-summary'
 import { Table } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
 import {
@@ -28,22 +29,19 @@ export function DataTablePagination<TData>({
   const pageSize = table.getState().pagination.pageSize
   const totalRows = table.getFilteredRowModel().rows.length
 
-  const startRow = (currentPage - 1) * pageSize + 1
-  const endRow = Math.min(currentPage * pageSize, totalRows)
-
   const pageNumbers = getPageNumbers(currentPage, pageCount)
 
   return (
     <div className="flex flex-col-reverse items-center justify-between gap-4 px-2 py-4 sm:flex-row">
       <div className="flex items-center space-x-2">
-        <p className="text-sm font-medium">Хуудасны хэмжээ</p>
+        <p id="rows-per-page-label" className="text-sm font-medium">Rows per page</p>
         <Select
           value={`${pageSize}`}
           onValueChange={(value) => {
             table.setPageSize(Number(value))
           }}
         >
-          <SelectTrigger className="h-8 w-[70px]">
+          <SelectTrigger className="h-8 w-[70px]" aria-labelledby="rows-per-page-label">
             <SelectValue placeholder={pageSize} />
           </SelectTrigger>
           <SelectContent side="top">
@@ -57,10 +55,7 @@ export function DataTablePagination<TData>({
       </div>
 
       <div className="flex items-center justify-center space-x-2 text-sm">
-        <span>
-          Нийт {totalRows} үр дүнгийн {startRow}-ээс {endRow}-ийг харуулж
-          байна
-        </span>
+        <span aria-live="polite">{paginationSummary(totalRows, currentPage, pageSize)}</span>
       </div>
 
       <div className="flex items-center space-x-2">
@@ -69,6 +64,7 @@ export function DataTablePagination<TData>({
           className="hidden h-8 w-8 p-0 lg:flex"
           onClick={() => table.setPageIndex(0)}
           disabled={!table.getCanPreviousPage()}
+          aria-label="First page"
         >
           <ChevronsLeft className="h-4 w-4" />
         </Button>
@@ -77,6 +73,7 @@ export function DataTablePagination<TData>({
           className="h-8 w-8 p-0"
           onClick={() => table.previousPage()}
           disabled={!table.getCanPreviousPage()}
+          aria-label="Previous page"
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
@@ -96,6 +93,8 @@ export function DataTablePagination<TData>({
               variant={pageNumber === currentPage ? 'default' : 'outline'}
               className="h-8 w-8 p-0"
               onClick={() => table.setPageIndex(Number(pageNumber) - 1)}
+              aria-label={`Page ${pageNumber}`}
+              aria-current={pageNumber === currentPage ? 'page' : undefined}
             >
               {pageNumber}
             </Button>
@@ -107,6 +106,7 @@ export function DataTablePagination<TData>({
           className="h-8 w-8 p-0"
           onClick={() => table.nextPage()}
           disabled={!table.getCanNextPage()}
+          aria-label="Next page"
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
@@ -115,6 +115,7 @@ export function DataTablePagination<TData>({
           className="hidden h-8 w-8 p-0 lg:flex"
           onClick={() => table.setPageIndex(pageCount - 1)}
           disabled={!table.getCanNextPage()}
+          aria-label="Last page"
         >
           <ChevronsRight className="h-4 w-4" />
         </Button>

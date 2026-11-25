@@ -21,6 +21,9 @@ interface DataTableBasicProps<TData> {
   table: Table<TData>
   actionBar?: React.ReactNode
   loading?: boolean
+  /** Shown instead of rows when loading failed (never an empty table that looks like "no data"). */
+  error?: string | null
+  onRetry?: () => void
   emptyMessage?: string
   stickyHeader?: boolean
   enablePinning?: boolean
@@ -51,7 +54,7 @@ export function getCommonPinningStyles(
       ? `${isPinned === 'left' ? '2px' : isPinned === 'right' ? '-2px' : '0px'} 0px 4px rgba(0, 0, 0, 0.05)`
       : '',
     position: isPinned ? 'sticky' : 'relative',
-    backgroundColor: isPinned ? '#fafafa' : '',
+    backgroundColor: isPinned ? 'var(--background)' : '',
     width: column.getSize(),
     zIndex: isPinned ? 10 : 0,
     ...(isPinned === 'left' && { left: column.getStart?.('left') }),
@@ -63,7 +66,9 @@ export function DataTableBasic<TData>({
   table,
   actionBar,
   loading = false,
-  emptyMessage = 'Илэрц олдсонгүй',
+  error = null,
+  onRetry,
+  emptyMessage = 'No results',
   stickyHeader = true,
   enablePinning = false,
   showPagination = true,
@@ -91,21 +96,18 @@ export function DataTableBasic<TData>({
       <div
         className={cn(
           'border-border/50 bg-card overflow-hidden rounded-lg border shadow-sm',
-          'transition-all duration-200 hover:shadow-md',
           'relative min-w-full'
         )}
       >
         {isPending && (
-          <div className="bg-primary/10 absolute top-0 right-0 left-0 z-30 h-0.5 overflow-hidden">
-            <div className="via-primary h-full w-full animate-pulse bg-linear-to-r from-transparent to-transparent" />
-            <div
-              className="via-primary/80 absolute top-0 h-full w-8 bg-linear-to-r from-transparent to-transparent"
-              style={{ animation: 'slideProgress 1.5s ease-in-out infinite' }}
-            />
-          </div>
+          <div
+            role="progressbar"
+            aria-label="Updating"
+            className="bg-primary/60 absolute top-0 right-0 left-0 z-30 h-0.5 animate-pulse"
+          />
         )}
 
-        <UITable>
+        <UITable aria-busy={loading || isPending}>
           <TableHeader className={cn(stickyHeader && 'sticky top-0 z-20')}>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
@@ -135,13 +137,30 @@ export function DataTableBasic<TData>({
           </TableHeader>
 
           <TableBody>
-            {loading ? (
+            {error && !loading ? (
+              <TableRow>
+                <TableCell colSpan={table.getAllColumns().length} className="h-32 text-center">
+                  <div role="alert" className="flex flex-col items-center justify-center gap-3 py-8">
+                    <p className="text-sm font-medium">Couldn&apos;t load this list</p>
+                    <p className="text-muted-foreground max-w-md text-sm">{error}</p>
+                    {onRetry && (
+                      <button
+                        type="button"
+                        onClick={onRetry}
+                        className="border-input hover:bg-accent rounded-md border px-3 py-1.5 text-sm font-medium"
+                      >
+                        Try again
+                      </button>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : loading ? (
               Array.from({ length: 10 }).map((_, idx) => (
                 <TableRow
                   key={`skeleton-${idx}`}
                   aria-hidden="true"
                   className="border-border/30 border-b"
-                  style={{ animationDelay: `${idx * 80}ms` } as React.CSSProperties}
                 >
                   {table.getVisibleLeafColumns().map((col) => (
                     <TableCell key={col.id}>
@@ -156,7 +175,7 @@ export function DataTableBasic<TData>({
                   key={row.id}
                   data-state={row.getIsSelected() && 'selected'}
                   className={cn(
-                    'group border-border/50 hover:border-border/60 border-b transition-all duration-200 ease-in-out',
+                    'group border-border/50 border-b transition-colors',
                     'hover:bg-muted/40 active:bg-muted/60',
                     row.getIsSelected() && 'bg-primary/5 border-primary/20 hover:bg-primary/10',
                     onRowClick && !loading && 'cursor-pointer'
@@ -171,7 +190,7 @@ export function DataTableBasic<TData>({
                         style={enablePinning && mounted ? getCommonPinningStyles(cell.column) : undefined}
                         className={cn(
                           'relative overflow-hidden align-middle transition-colors',
-                          cellPinned && 'bg-white dark:bg-slate-950',
+                          cellPinned && 'bg-background',
                           (cell.column.columnDef.meta as { className?: string } | undefined)?.className
                         )}
                       >
@@ -214,7 +233,7 @@ export function DataTableBasic<TData>({
       <div className="flex flex-col gap-3">
         {showPagination && <DataTablePagination table={table} />}
         {actionBar && mounted && table.getFilteredSelectedRowModel().rows.length > 0 && (
-          <div className="animate-in slide-in-from-bottom-2 duration-300">{actionBar}</div>
+          <div>{actionBar}</div>
         )}
       </div>
     </div>
