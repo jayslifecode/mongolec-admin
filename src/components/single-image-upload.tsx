@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useImperativeHandle, forwardRef } from "react";
+import { useEffect, useState, useRef, useImperativeHandle, forwardRef } from "react";
 import { useMutation } from "@apollo/client/react";
 import { Button } from "@/components/ui/button";
 import { CREATE_PRESIGNED_UPLOAD_URL } from "@/graphql/mutations/merch";
@@ -16,6 +16,8 @@ interface SingleImageUploadProps {
   className?: string;
   autoUpload?: boolean;
   compact?: boolean;
+  /** Told when an upload starts and ends, so a form can stay disabled until the photo is saved. */
+  onUploadingChange?: (uploading: boolean) => void;
 }
 
 export interface SingleImageUploadRef {
@@ -23,11 +25,15 @@ export interface SingleImageUploadRef {
 }
 
 export const SingleImageUpload = forwardRef<SingleImageUploadRef, SingleImageUploadProps>(
-  ({ onFileSelect, onUpload, initialUrl, className, autoUpload = false, compact = false }, ref) => {
+  ({ onFileSelect, onUpload, initialUrl, className, autoUpload = false, compact = false, onUploadingChange }, ref) => {
     const [file, setFile] = useState<File | null>(null);
     const [preview, setPreview] = useState<string | null>(initialUrl || null);
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+      onUploadingChange?.(uploading);
+    }, [uploading, onUploadingChange]);
 
     const [createPresignedUrl] = useMutation(CREATE_PRESIGNED_UPLOAD_URL);
 
@@ -161,10 +167,12 @@ export const SingleImageUpload = forwardRef<SingleImageUploadRef, SingleImageUpl
               </div>
               {!uploading && (
                 <button
+                  type="button"
+                  aria-label="Remove image"
                   onClick={handleRemove}
-                  className="absolute -right-1 -top-1 h-4 w-4 rounded-full bg-destructive text-destructive-foreground shadow-md opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                  className="absolute -right-1 -top-1 h-4 w-4 rounded-full bg-destructive text-destructive-foreground shadow-md opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity flex items-center justify-center"
                 >
-                  <X className="h-2.5 w-2.5" />
+                  <X className="h-2.5 w-2.5" aria-hidden="true" />
                 </button>
               )}
             </div>
@@ -221,12 +229,14 @@ export const SingleImageUpload = forwardRef<SingleImageUploadRef, SingleImageUpl
             </div>
             {!uploading && (
               <Button
+                type="button"
+                aria-label="Remove image"
                 variant="destructive"
                 size="icon"
-                className="absolute -right-2 -top-2 h-8 w-8 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute -right-2 -top-2 h-8 w-8 rounded-full shadow-md opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
                 onClick={handleRemove}
               >
-                <X className="h-4 w-4" />
+                <X className="h-4 w-4" aria-hidden="true" />
               </Button>
             )}
           </div>
