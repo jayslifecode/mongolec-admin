@@ -2,15 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import * as z from 'zod'
 import { SerializedEditorState } from 'lexical'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
-import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Select,
   SelectContent,
@@ -19,14 +17,15 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Editor } from '@/components/blocks/editor-00/editor'
-import { FormSection } from '@/components/admin'
-import { Save, Globe, AlertCircle, ChevronLeft, Loader2 } from 'lucide-react'
-import Link from 'next/link'
+import { FormField, FormSection, PageHeader, StatusBadge } from '@/components/admin'
+import { QueryErrorState } from '@/components/query-error-state'
+import { Save, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { useMutation, useQuery } from '@apollo/client/react'
 import { CREATE_NEWS_ARTICLE, UPDATE_NEWS_ARTICLE } from '@/graphql/mutations/news'
-import { GET_NEWS_ARTICLE_BY_ID } from '@/graphql/queries/news'
-import { cn } from '@/lib/utils'
+import { GET_NEWS_ARTICLE_BY_ID, GET_NEWS_CATEGORIES } from '@/graphql/queries/news'
+import { validateArticleForm } from '../lib/article-schema'
 
 const initialEditorState = {
   root: {
@@ -48,37 +47,43 @@ const initialEditorState = {
   },
 } as unknown as SerializedEditorState
 
-const newsArticleSchema = z.object({
-  title_en: z.string().min(1, 'English title is required'),
-  title_mn: z.string().min(1, 'Mongolian title is required'),
-  slug: z.string().min(1, 'Slug is required'),
-  excerpt_en: z.string().optional(),
-  excerpt_mn: z.string().optional(),
-  subtitle_en: z.string().optional(),
-  subtitle_mn: z.string().optional(),
-  featuredImage: z.string().optional(),
-  socialImage: z.string().optional(),
-  categoryId: z.string().optional(),
-  location_en: z.string().optional(),
-  location_mn: z.string().optional(),
-  source: z.string().optional(),
-  byline_en: z.string().optional(),
-  byline_mn: z.string().optional(),
-  priority: z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT', 'BREAKING']),
-  status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED', 'SCHEDULED']),
-  isBreaking: z.boolean(),
-  isFeatured: z.boolean(),
-  metaTitle_en: z.string().optional(),
-  metaTitle_mn: z.string().optional(),
-  metaDescription_en: z.string().optional(),
-  metaDescription_mn: z.string().optional(),
-  keywords_en: z.string().optional(),
-  keywords_mn: z.string().optional(),
-  publishedAt: z.string().optional(),
-  scheduledAt: z.string().optional(),
-})
+interface NewsArticleFormData {
+  title_en: string
+  title_mn: string
+  slug: string
+  excerpt_en: string
+  excerpt_mn: string
+  subtitle_en: string
+  subtitle_mn: string
+  featuredImage: string
+  socialImage: string
+  categoryId: string
+  location_en: string
+  location_mn: string
+  source: string
+  byline_en: string
+  byline_mn: string
+  priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' | 'BREAKING'
+  status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED' | 'SCHEDULED'
+  isBreaking: boolean
+  isFeatured: boolean
+  metaTitle_en: string
+  metaTitle_mn: string
+  metaDescription_en: string
+  metaDescription_mn: string
+  keywords_en: string
+  keywords_mn: string
+  publishedAt: string
+  scheduledAt: string
+}
 
-type NewsArticleFormData = z.infer<typeof newsArticleSchema>
+const EMPTY_FORM: NewsArticleFormData = {
+  title_en: '', title_mn: '', slug: '', excerpt_en: '', excerpt_mn: '', subtitle_en: '', subtitle_mn: '',
+  featuredImage: '', socialImage: '', categoryId: '', location_en: '', location_mn: '', source: '',
+  byline_en: '', byline_mn: '', priority: 'NORMAL', status: 'DRAFT', isBreaking: false, isFeatured: false,
+  metaTitle_en: '', metaTitle_mn: '', metaDescription_en: '', metaDescription_mn: '', keywords_en: '',
+  keywords_mn: '', publishedAt: '', scheduledAt: '',
+}
 
 interface RawArticle {
   id: string
@@ -109,74 +114,77 @@ interface NewsArticleFormBlockNoteProps {
   articleId?: string
 }
 
+const STATUS_TONES = { DRAFT: 'neutral', PUBLISHED: 'success', SCHEDULED: 'warning', ARCHIVED: 'neutral' } as const
+
+const generateSlug = (title: string) =>
+  title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+
+const errorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error && error.message ? error.message : fallback
+
 export function NewsArticleFormBlockNote({ mode = 'create', articleId }: NewsArticleFormBlockNoteProps) {
   const router = useRouter()
   const [activeLanguage, setActiveLanguage] = useState<'en' | 'mn'>('en')
   const [contentEn, setContentEn] = useState<SerializedEditorState>(initialEditorState)
   const [contentMn, setContentMn] = useState<SerializedEditorState>(initialEditorState)
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  // In edit mode the form (and its editors) only mounts once the article has been loaded into it.
+  const [isHydrated, setIsHydrated] = useState(mode === 'create')
 
-  const [createArticle, { loading: creating }] = useMutation(CREATE_NEWS_ARTICLE, {
-    onCompleted: (data: unknown) => {
-      const result = data as { createNewsArticle: { id: string } }
-      router.push(`/news/${result.createNewsArticle.id}/edit`)
-    },
-    onError: (err: Error) => setSubmitError(err.message),
-  })
-
+  const [createArticle, { loading: creating }] = useMutation(CREATE_NEWS_ARTICLE)
   const [updateArticle, { loading: updating }] = useMutation(UPDATE_NEWS_ARTICLE, {
-    onError: (err: Error) => setSubmitError(err.message),
+    refetchQueries: ['GetNewsArticleById'],
   })
 
-  const { data: articleData } = useQuery<{ newsArticleById: RawArticle }>(GET_NEWS_ARTICLE_BY_ID, {
+  const isEdit = mode === 'edit' && !!articleId
+  const enQuery = useQuery<{ getNewsArticleById: RawArticle | null }>(GET_NEWS_ARTICLE_BY_ID, {
     variables: { id: articleId, language: 'en' },
-    skip: mode !== 'edit' || !articleId,
+    skip: !isEdit,
   })
-
-  const { data: articleDataMn } = useQuery<{ newsArticleById: RawArticle }>(GET_NEWS_ARTICLE_BY_ID, {
+  const mnQuery = useQuery<{ getNewsArticleById: RawArticle | null }>(GET_NEWS_ARTICLE_BY_ID, {
     variables: { id: articleId, language: 'mn' },
-    skip: mode !== 'edit' || !articleId,
+    skip: !isEdit,
   })
+  const { data: categoriesData } = useQuery<{ getNewsCategories: Array<{ id: string; name: string }> }>(
+    GET_NEWS_CATEGORIES,
+    { variables: { language: 'en' } }
+  )
+  const categories = categoriesData?.getNewsCategories ?? []
 
   const isSubmitting = creating || updating
 
-  const {
-    register,
-    handleSubmit,
-    watch,
-    setValue,
-    reset,
-    formState: { errors },
-  } = useForm<NewsArticleFormData>({
-    resolver: zodResolver(newsArticleSchema),
-    defaultValues: {
-      priority: 'NORMAL',
-      status: 'DRAFT',
-      isBreaking: false,
-      isFeatured: false,
-    },
+  const { register, getValues, setValue, reset, watch } = useForm<NewsArticleFormData>({
+    defaultValues: EMPTY_FORM,
   })
 
+  const articleData = enQuery.data
+  const articleDataMn = mnQuery.data
+
   useEffect(() => {
-    const en = articleData?.newsArticleById
-    const mn = articleDataMn?.newsArticleById
-    if (!en) return
+    const en = articleData?.getNewsArticleById
+    const mn = articleDataMn?.getNewsArticleById
+    if (!en || !mn) return
 
     const status = (en.status?.toUpperCase() ?? 'DRAFT') as NewsArticleFormData['status']
     const priority = (en.priority?.toUpperCase() ?? 'NORMAL') as NewsArticleFormData['priority']
 
     reset({
       title_en: en.title ?? '',
-      title_mn: mn?.title ?? '',
+      title_mn: mn.title ?? '',
       slug: en.slug ?? '',
       excerpt_en: en.excerpt ?? '',
-      excerpt_mn: mn?.excerpt ?? '',
+      excerpt_mn: mn.excerpt ?? '',
       subtitle_en: en.subtitle ?? '',
-      subtitle_mn: mn?.subtitle ?? '',
+      subtitle_mn: mn.subtitle ?? '',
       byline_en: en.byline ?? '',
-      byline_mn: mn?.byline ?? '',
+      byline_mn: mn.byline ?? '',
       location_en: en.location ?? '',
-      location_mn: mn?.location ?? '',
+      location_mn: mn.location ?? '',
       source: en.source ?? '',
       featuredImage: en.featuredImage ?? '',
       socialImage: en.socialImage ?? '',
@@ -186,11 +194,11 @@ export function NewsArticleFormBlockNote({ mode = 'create', articleId }: NewsArt
       isBreaking: en.isBreaking ?? false,
       isFeatured: en.isFeatured ?? false,
       metaTitle_en: en.metaTitle ?? '',
-      metaTitle_mn: mn?.metaTitle ?? '',
+      metaTitle_mn: mn.metaTitle ?? '',
       metaDescription_en: en.metaDescription ?? '',
-      metaDescription_mn: mn?.metaDescription ?? '',
+      metaDescription_mn: mn.metaDescription ?? '',
       keywords_en: Array.isArray(en.keywords) ? en.keywords.join(', ') : (en.keywords ?? ''),
-      keywords_mn: Array.isArray(mn?.keywords) ? mn?.keywords.join(', ') : (mn?.keywords ?? ''),
+      keywords_mn: Array.isArray(mn.keywords) ? mn.keywords.join(', ') : (mn.keywords ?? ''),
       publishedAt: en.publishedAt ? new Date(en.publishedAt).toISOString().slice(0, 16) : '',
       scheduledAt: en.scheduledAt ? new Date(en.scheduledAt).toISOString().slice(0, 16) : '',
     })
@@ -200,210 +208,228 @@ export function NewsArticleFormBlockNote({ mode = 'create', articleId }: NewsArt
         const blocksEn = typeof en.blocks === 'string' ? JSON.parse(en.blocks) : en.blocks
         if (blocksEn?.en) setContentEn(blocksEn.en)
         else if (blocksEn?.root) setContentEn(blocksEn)
-      } catch {}
+      } catch {
+        toast.error('The English article content could not be read and will appear empty.')
+      }
     }
-    if (mn?.blocks) {
+    if (mn.blocks) {
       try {
         const blocksMn = typeof mn.blocks === 'string' ? JSON.parse(mn.blocks) : mn.blocks
         if (blocksMn?.mn) setContentMn(blocksMn.mn)
         else if (blocksMn?.root) setContentMn(blocksMn)
-      } catch {}
+      } catch {
+        toast.error('The Mongolian article content could not be read and will appear empty.')
+      }
     }
+    setIsHydrated(true)
   }, [articleData, articleDataMn, reset])
 
   const watchedStatus = watch('status')
   const watchedPriority = watch('priority')
   const watchedIsBreaking = watch('isBreaking')
   const watchedIsFeatured = watch('isFeatured')
+  const watchedCategoryId = watch('categoryId')
 
   const buildInput = (data: NewsArticleFormData) => ({
-    title: { en: data.title_en, mn: data.title_mn },
-    slug: data.slug,
-    excerpt: { en: data.excerpt_en ?? '', mn: data.excerpt_mn ?? '' },
-    subtitle: { en: data.subtitle_en ?? '', mn: data.subtitle_mn ?? '' },
-    byline: { en: data.byline_en ?? '', mn: data.byline_mn ?? '' },
+    title: { en: data.title_en.trim(), mn: data.title_mn.trim() },
+    slug: data.slug.trim(),
+    excerpt: { en: data.excerpt_en, mn: data.excerpt_mn },
+    subtitle: { en: data.subtitle_en, mn: data.subtitle_mn },
+    byline: { en: data.byline_en, mn: data.byline_mn },
     blocks: { en: contentEn, mn: contentMn },
-    featuredImage: data.featuredImage || undefined,
-    socialImage: data.socialImage || undefined,
+    featuredImage: data.featuredImage.trim() || undefined,
+    socialImage: data.socialImage.trim() || undefined,
     categoryId: data.categoryId || undefined,
-    location: { en: data.location_en ?? '', mn: data.location_mn ?? '' },
+    location: { en: data.location_en, mn: data.location_mn },
     source: data.source || undefined,
     priority: data.priority.toLowerCase(),
     status: data.status.toLowerCase(),
     isBreaking: data.isBreaking,
     isFeatured: data.isFeatured,
-    metaTitle: { en: data.metaTitle_en ?? '', mn: data.metaTitle_mn ?? '' },
-    metaDescription: { en: data.metaDescription_en ?? '', mn: data.metaDescription_mn ?? '' },
+    metaTitle: { en: data.metaTitle_en, mn: data.metaTitle_mn },
+    metaDescription: { en: data.metaDescription_en, mn: data.metaDescription_mn },
     keywords: {
-      en: data.keywords_en?.split(',').map((k) => k.trim()).filter(Boolean) ?? [],
-      mn: data.keywords_mn?.split(',').map((k) => k.trim()).filter(Boolean) ?? [],
+      en: data.keywords_en.split(',').map((k) => k.trim()).filter(Boolean),
+      mn: data.keywords_mn.split(',').map((k) => k.trim()).filter(Boolean),
     },
     publishedAt: data.publishedAt || undefined,
     scheduledAt: data.scheduledAt || undefined,
   })
 
-  const onSubmit = async (data: NewsArticleFormData) => {
-    setSubmitError(null)
-    const input = buildInput(data)
+  /** Validates every field of both languages, saves, and reports the outcome. `status` overrides the select (Save as Draft). */
+  const save = async (status?: NewsArticleFormData['status']) => {
+    if (status) setValue('status', status)
+    const data = { ...getValues(), ...(status ? { status } : {}) }
 
-    if (mode === 'create') {
-      createArticle({ variables: { input } })
-    } else {
-      updateArticle({ variables: { id: articleId, input } })
+    const { fieldErrors, firstErrorLanguage } = validateArticleForm(data)
+    setErrors(fieldErrors)
+    const firstKey = Object.keys(fieldErrors)[0]
+    if (firstKey) {
+      // An error in the hidden language tab would otherwise fail silently: show that tab.
+      if (firstErrorLanguage) setActiveLanguage(firstErrorLanguage)
+      toast.error('Some fields need attention. Check the highlighted fields.')
+      setTimeout(() => document.getElementById(firstKey)?.focus(), 0)
+      return
+    }
+
+    const input = buildInput(data)
+    try {
+      if (mode === 'create') {
+        const result = await createArticle({ variables: { input } })
+        const created = (result.data as { createNewsArticle: { id: string } } | null | undefined)?.createNewsArticle
+        toast.success(status === 'DRAFT' ? 'Draft saved' : 'Article created')
+        router.push(created ? `/news/${created.id}/edit` : '/news')
+      } else {
+        await updateArticle({ variables: { id: articleId, input } })
+        toast.success(status === 'DRAFT' ? 'Saved as draft' : 'Article updated')
+      }
+    } catch (error) {
+      toast.error(errorMessage(error, 'Failed to save the article'))
     }
   }
 
-  const generateSlug = (title: string) =>
-    title
-      .toLowerCase()
-      .replace(/[^\w\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .trim()
+  const fieldKey = (base: string) => `${base}_${activeLanguage}` as keyof NewsArticleFormData
+
+  if (isEdit && (enQuery.error || mnQuery.error)) {
+    return (
+      <QueryErrorState
+        title="Couldn't load this article"
+        message={(enQuery.error ?? mnQuery.error)?.message ?? 'Something went wrong.'}
+        onRetry={() => void Promise.all([enQuery.refetch(), mnQuery.refetch()])}
+      />
+    )
+  }
+  if (isEdit && !isHydrated) {
+    const notFound = !enQuery.loading && !mnQuery.loading && !enQuery.data?.getNewsArticleById
+    return notFound ? (
+      <QueryErrorState title="Article not found" message="It may have been deleted." />
+    ) : (
+      <div className='space-y-4' role='status' aria-label='Loading article'>
+        <Skeleton className='h-10 w-64' />
+        <Skeleton className='h-96 w-full' />
+      </div>
+    )
+  }
 
   const lang = activeLanguage === 'en' ? 'English' : 'Mongolian'
+  const hasHiddenLanguageError = Object.keys(errors).some((k) => k.endsWith(activeLanguage === 'en' ? '_mn' : '_en'))
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className='space-y-6'>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        void save()
+      }}
+      className='space-y-6'
+      noValidate
+    >
+      <PageHeader
+        title={mode === 'create' ? 'New Article' : 'Edit Article'}
+        backHref='/news'
+        lang={activeLanguage}
+        onLangChange={setActiveLanguage}
+      />
 
-      {/* Page header */}
-      <div className='flex items-center justify-between'>
-        <div className='flex items-center gap-3'>
-          <Button variant='ghost' size='sm' asChild className='gap-1.5 text-muted-foreground'>
-            <Link href='/news'>
-              <ChevronLeft className='h-4 w-4' />
-              News
-            </Link>
-          </Button>
-          <span className='text-muted-foreground'>/</span>
-          <h1 className='text-xl font-semibold'>
-            {mode === 'create' ? 'New Article' : 'Edit Article'}
-          </h1>
-        </div>
-
-        {/* Language toggle */}
-        <div className='flex items-center gap-1 rounded-md border p-1'>
-          {(['en', 'mn'] as const).map((l) => (
-            <button
-              key={l}
-              type='button'
-              onClick={() => setActiveLanguage(l)}
-              className={cn(
-                'flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition-colors',
-                activeLanguage === l
-                  ? 'bg-background shadow-sm text-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              <Globe className='h-3.5 w-3.5' />
-              {l === 'en' ? 'English' : 'Монгол'}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Error banner */}
-      {submitError && (
-        <div className='flex items-start gap-3 rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive'>
-          <AlertCircle className='mt-0.5 h-4 w-4 flex-shrink-0' />
-          <span>{submitError}</span>
-        </div>
+      {hasHiddenLanguageError && (
+        <p role='alert' className='text-destructive text-sm'>
+          The {activeLanguage === 'en' ? 'Mongolian' : 'English'} text needs attention. Switch language to fix it.
+        </p>
       )}
 
       {/* Main two-column layout */}
-      <div className='grid gap-6 lg:grid-cols-[1fr_300px]'>
+      <div className='grid grid-cols-1 gap-6 lg:grid-cols-[1fr_300px]'>
 
         {/* Left column */}
         <div className='space-y-6'>
 
           {/* Article Details */}
           <FormSection title={`Article Details · ${lang}`}>
-              <div className='space-y-2'>
-                <Label htmlFor={`title_${activeLanguage}`}>
-                  Title *
-                </Label>
-                <Input
-                  id={`title_${activeLanguage}`}
-                  {...register(`title_${activeLanguage}` as keyof NewsArticleFormData)}
-                  placeholder={activeLanguage === 'en' ? 'Enter article title' : 'Нийтлэлийн гарчиг'}
-                  onBlur={(e) => {
-                    if (activeLanguage === 'en' && !watch('slug')) {
-                      setValue('slug', generateSlug(e.target.value))
-                    }
-                  }}
-                />
-                {errors[`title_${activeLanguage}` as keyof typeof errors] && (
-                  <p className='text-xs text-destructive'>
-                    {errors[`title_${activeLanguage}` as keyof typeof errors]?.message as string}
-                  </p>
+              <FormField id={fieldKey('title')} label='Title' required error={errors[fieldKey('title')]}>
+                {(control) => (
+                  <Input
+                    {...control}
+                    {...register(fieldKey('title') as 'title_en')}
+                    placeholder={activeLanguage === 'en' ? 'Enter article title' : 'Нийтлэлийн гарчиг'}
+                    onBlur={(e) => {
+                      register(fieldKey('title') as 'title_en').onBlur(e)
+                      if (activeLanguage === 'en' && !getValues('slug')) {
+                        setValue('slug', generateSlug(e.target.value))
+                      }
+                    }}
+                  />
                 )}
-              </div>
+              </FormField>
 
-              <div className='space-y-2'>
-                <Label htmlFor={`subtitle_${activeLanguage}`}>Subtitle</Label>
-                <Input
-                  id={`subtitle_${activeLanguage}`}
-                  {...register(`subtitle_${activeLanguage}` as keyof NewsArticleFormData)}
-                  placeholder={activeLanguage === 'en' ? 'Article subtitle' : 'Дэд гарчиг'}
-                />
-              </div>
-
-              <div className='space-y-2'>
-                <Label htmlFor='slug'>URL Slug *</Label>
-                <div className='flex'>
-                  <span className='inline-flex items-center rounded-l-md border border-r-0 bg-muted px-3 text-sm text-muted-foreground'>
-                    /news/
-                  </span>
+              <FormField id={fieldKey('subtitle')} label='Subtitle'>
+                {(control) => (
                   <Input
-                    id='slug'
-                    {...register('slug')}
-                    placeholder='article-url-slug'
-                    className='rounded-l-none font-mono text-sm'
+                    {...control}
+                    {...register(fieldKey('subtitle') as 'subtitle_en')}
+                    placeholder={activeLanguage === 'en' ? 'Article subtitle' : 'Дэд гарчиг'}
                   />
-                </div>
-                {errors.slug && (
-                  <p className='text-xs text-destructive'>{errors.slug.message}</p>
                 )}
-              </div>
+              </FormField>
 
-              <div className='space-y-2'>
-                <Label htmlFor={`excerpt_${activeLanguage}`}>Excerpt</Label>
-                <Textarea
-                  id={`excerpt_${activeLanguage}`}
-                  {...register(`excerpt_${activeLanguage}` as keyof NewsArticleFormData)}
-                  placeholder={activeLanguage === 'en' ? 'Brief summary for article previews' : 'Товч агуулга'}
-                  rows={3}
-                  className='resize-none'
-                />
-              </div>
+              <FormField
+                id='slug'
+                label='URL name (slug)'
+                required
+                error={errors.slug}
+                description='Lowercase letters, numbers and dashes. Filled in from the English title.'
+              >
+                {(control) => (
+                  <div className='flex'>
+                    <span className='inline-flex items-center rounded-l-md border border-r-0 bg-muted px-3 text-sm text-muted-foreground'>
+                      /news/
+                    </span>
+                    <Input
+                      {...control}
+                      {...register('slug')}
+                      placeholder='article-url-slug'
+                      className='rounded-l-none font-mono text-sm'
+                    />
+                  </div>
+                )}
+              </FormField>
 
-              <div className='grid gap-4 sm:grid-cols-2'>
-                <div className='space-y-2'>
-                  <Label htmlFor={`byline_${activeLanguage}`}>Byline</Label>
-                  <Input
-                    id={`byline_${activeLanguage}`}
-                    {...register(`byline_${activeLanguage}` as keyof NewsArticleFormData)}
-                    placeholder={activeLanguage === 'en' ? 'By Jane Smith' : 'Зохиогч: Б. Болд'}
+              <FormField id={fieldKey('excerpt')} label='Excerpt'>
+                {(control) => (
+                  <Textarea
+                    {...control}
+                    {...register(fieldKey('excerpt') as 'excerpt_en')}
+                    placeholder={activeLanguage === 'en' ? 'Brief summary for article previews' : 'Товч агуулга'}
+                    rows={3}
+                    className='resize-none'
                   />
-                </div>
-                <div className='space-y-2'>
-                  <Label htmlFor={`location_${activeLanguage}`}>Location</Label>
-                  <Input
-                    id={`location_${activeLanguage}`}
-                    {...register(`location_${activeLanguage}` as keyof NewsArticleFormData)}
-                    placeholder={activeLanguage === 'en' ? 'Ulaanbaatar, Mongolia' : 'Улаанбаатар'}
-                  />
-                </div>
+                )}
+              </FormField>
+
+              <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+                <FormField id={fieldKey('byline')} label='Byline'>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      {...register(fieldKey('byline') as 'byline_en')}
+                      placeholder={activeLanguage === 'en' ? 'By Jane Smith' : 'Зохиогч: Б. Болд'}
+                    />
+                  )}
+                </FormField>
+                <FormField id={fieldKey('location')} label='Location'>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      {...register(fieldKey('location') as 'location_en')}
+                      placeholder={activeLanguage === 'en' ? 'Ulaanbaatar, Mongolia' : 'Улаанбаатар'}
+                    />
+                  )}
+                </FormField>
               </div>
 
-              <div className='space-y-2'>
-                <Label htmlFor='source'>Source</Label>
-                <Input
-                  id='source'
-                  {...register('source')}
-                  placeholder='Reuters, AP, Original…'
-                />
-              </div>
+              <FormField id='source' label='Source'>
+                {(control) => (
+                  <Input {...control} {...register('source')} placeholder='Reuters, AP, Original…' />
+                )}
+              </FormField>
           </FormSection>
 
           {/* Article Content */}
@@ -426,58 +452,50 @@ export function NewsArticleFormBlockNote({ mode = 'create', articleId }: NewsArt
 
           {/* SEO */}
           <FormSection title={`SEO & Social · ${lang}`}>
-              <div className='space-y-2'>
-                <Label htmlFor={`metaTitle_${activeLanguage}`}>Meta Title</Label>
-                <Input
-                  id={`metaTitle_${activeLanguage}`}
-                  {...register(`metaTitle_${activeLanguage}` as keyof NewsArticleFormData)}
-                  placeholder={activeLanguage === 'en' ? 'SEO title (60 chars max)' : 'SEO гарчиг'}
-                  maxLength={60}
-                />
-              </div>
-
-              <div className='space-y-2'>
-                <Label htmlFor={`metaDescription_${activeLanguage}`}>Meta Description</Label>
-                <Textarea
-                  id={`metaDescription_${activeLanguage}`}
-                  {...register(`metaDescription_${activeLanguage}` as keyof NewsArticleFormData)}
-                  placeholder={activeLanguage === 'en' ? 'SEO description (160 chars max)' : 'SEO тайлбар'}
-                  rows={3}
-                  maxLength={160}
-                  className='resize-none'
-                />
-              </div>
-
-              <div className='space-y-2'>
-                <Label htmlFor={`keywords_${activeLanguage}`}>Keywords</Label>
-                <Input
-                  id={`keywords_${activeLanguage}`}
-                  {...register(`keywords_${activeLanguage}` as keyof NewsArticleFormData)}
-                  placeholder={activeLanguage === 'en' ? 'ecology, mongolia, conservation' : 'экологи, монгол'}
-                  className='font-mono text-sm'
-                />
-                <p className='text-xs text-muted-foreground'>Separate with commas</p>
-              </div>
-
-              <div className='grid gap-4 sm:grid-cols-2'>
-                <div className='space-y-2'>
-                  <Label htmlFor='featuredImage'>Featured Image URL</Label>
+              <FormField id={fieldKey('metaTitle')} label='Meta title' error={errors[fieldKey('metaTitle')]} description='60 characters at most.'>
+                {(control) => (
                   <Input
-                    id='featuredImage'
-                    {...register('featuredImage')}
-                    placeholder='https://…'
-                    className='text-sm'
+                    {...control}
+                    {...register(fieldKey('metaTitle') as 'metaTitle_en')}
+                    placeholder={activeLanguage === 'en' ? 'SEO title' : 'SEO гарчиг'}
                   />
-                </div>
-                <div className='space-y-2'>
-                  <Label htmlFor='socialImage'>Social / OG Image</Label>
+                )}
+              </FormField>
+
+              <FormField id={fieldKey('metaDescription')} label='Meta description' error={errors[fieldKey('metaDescription')]} description='160 characters at most.'>
+                {(control) => (
+                  <Textarea
+                    {...control}
+                    {...register(fieldKey('metaDescription') as 'metaDescription_en')}
+                    placeholder={activeLanguage === 'en' ? 'SEO description' : 'SEO тайлбар'}
+                    rows={3}
+                    className='resize-none'
+                  />
+                )}
+              </FormField>
+
+              <FormField id={fieldKey('keywords')} label='Keywords' description='Separate with commas.'>
+                {(control) => (
                   <Input
-                    id='socialImage'
-                    {...register('socialImage')}
-                    placeholder='https://…'
-                    className='text-sm'
+                    {...control}
+                    {...register(fieldKey('keywords') as 'keywords_en')}
+                    placeholder={activeLanguage === 'en' ? 'ecology, mongolia, conservation' : 'экологи, монгол'}
+                    className='font-mono text-sm'
                   />
-                </div>
+                )}
+              </FormField>
+
+              <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+                <FormField id='featuredImage' label='Featured image link' error={errors.featuredImage}>
+                  {(control) => (
+                    <Input {...control} {...register('featuredImage')} placeholder='https://…' className='text-sm' inputMode='url' />
+                  )}
+                </FormField>
+                <FormField id='socialImage' label='Social / OG image link' error={errors.socialImage}>
+                  {(control) => (
+                    <Input {...control} {...register('socialImage')} placeholder='https://…' className='text-sm' inputMode='url' />
+                  )}
+                </FormField>
               </div>
           </FormSection>
         </div>
@@ -487,13 +505,13 @@ export function NewsArticleFormBlockNote({ mode = 'create', articleId }: NewsArt
 
           {/* Publish */}
           <FormSection title='Publish'>
-              <div className='space-y-2'>
-                <Label>Status</Label>
+              <div className='space-y-1.5'>
+                <Label htmlFor='status'>Status</Label>
                 <Select
                   value={watchedStatus}
                   onValueChange={(v) => setValue('status', v as NewsArticleFormData['status'])}
                 >
-                  <SelectTrigger className='w-full'>
+                  <SelectTrigger id='status' className='w-full'>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -505,13 +523,13 @@ export function NewsArticleFormBlockNote({ mode = 'create', articleId }: NewsArt
                 </Select>
               </div>
 
-              <div className='space-y-2'>
-                <Label>Priority</Label>
+              <div className='space-y-1.5'>
+                <Label htmlFor='priority'>Priority</Label>
                 <Select
                   value={watchedPriority}
                   onValueChange={(v) => setValue('priority', v as NewsArticleFormData['priority'])}
                 >
-                  <SelectTrigger className='w-full'>
+                  <SelectTrigger id='priority' className='w-full'>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -524,48 +542,62 @@ export function NewsArticleFormBlockNote({ mode = 'create', articleId }: NewsArt
                 </Select>
               </div>
 
-              {(watchedStatus === 'SCHEDULED' || watchedStatus === 'PUBLISHED') && (
-                <div className='space-y-2'>
-                  <Label htmlFor={watchedStatus === 'PUBLISHED' ? 'publishedAt' : 'scheduledAt'}>
-                    {watchedStatus === 'PUBLISHED' ? 'Published At' : 'Scheduled At'}
-                  </Label>
-                  {watchedStatus === 'PUBLISHED' ? (
-                    <Input
-                      id='publishedAt'
-                      type='datetime-local'
-                      {...register('publishedAt')}
-                      className='text-sm'
-                    />
-                  ) : (
-                    <Input
-                      id='scheduledAt'
-                      type='datetime-local'
-                      {...register('scheduledAt')}
-                      className='text-sm'
-                    />
+              <div className='space-y-1.5'>
+                <Label htmlFor='categoryId'>Category</Label>
+                <Select
+                  value={watchedCategoryId || 'none'}
+                  onValueChange={(v) => setValue('categoryId', v === 'none' ? '' : v)}
+                >
+                  <SelectTrigger id='categoryId' className='w-full'>
+                    <SelectValue placeholder='No category' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value='none'>No category</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {watchedStatus === 'PUBLISHED' && (
+                <FormField id='publishedAt' label='Published at'>
+                  {(control) => (
+                    <Input {...control} type='datetime-local' {...register('publishedAt')} className='text-sm' />
                   )}
-                </div>
+                </FormField>
+              )}
+              {watchedStatus === 'SCHEDULED' && (
+                <FormField id='scheduledAt' label='Scheduled at' required error={errors.scheduledAt}>
+                  {(control) => (
+                    <Input {...control} type='datetime-local' {...register('scheduledAt')} className='text-sm' />
+                  )}
+                </FormField>
               )}
           </FormSection>
 
           {/* Flags */}
           <FormSection title='Article Flags'>
-              <div className='flex items-center justify-between'>
+              <div className='flex items-center justify-between gap-3'>
                 <div className='space-y-0.5'>
-                  <Label>Breaking News</Label>
+                  <Label htmlFor='isBreaking'>Breaking news</Label>
                   <p className='text-xs text-muted-foreground'>Mark as urgent, top story</p>
                 </div>
                 <Switch
+                  id='isBreaking'
                   checked={watchedIsBreaking}
                   onCheckedChange={(v) => setValue('isBreaking', v)}
                 />
               </div>
-              <div className='flex items-center justify-between'>
+              <div className='flex items-center justify-between gap-3'>
                 <div className='space-y-0.5'>
-                  <Label>Featured</Label>
+                  <Label htmlFor='isFeatured'>Featured</Label>
                   <p className='text-xs text-muted-foreground'>Show on homepage highlight</p>
                 </div>
                 <Switch
+                  id='isFeatured'
                   checked={watchedIsFeatured}
                   onCheckedChange={(v) => setValue('isFeatured', v)}
                 />
@@ -574,27 +606,21 @@ export function NewsArticleFormBlockNote({ mode = 'create', articleId }: NewsArt
 
           {/* Status summary */}
           <div className='flex flex-wrap gap-2'>
-            <Badge variant='outline' className='text-xs'>
-              {watchedStatus}
-            </Badge>
-            {watchedIsBreaking && (
-              <Badge variant='destructive' className='text-xs'>Breaking</Badge>
-            )}
-            {watchedIsFeatured && (
-              <Badge className='text-xs bg-amber-500 hover:bg-amber-500'>Featured</Badge>
-            )}
+            <StatusBadge tone={STATUS_TONES[watchedStatus]}>{watchedStatus}</StatusBadge>
+            {watchedIsBreaking && <StatusBadge tone='danger'>Breaking</StatusBadge>}
+            {watchedIsFeatured && <StatusBadge>Featured</StatusBadge>}
           </div>
         </div>
       </div>
 
       {/* Sticky action bar */}
-      <div className='sticky bottom-0 z-10 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80'>
+      <div className='sticky bottom-0 z-10 border-t bg-background'>
         <div className='flex items-center justify-end gap-2 py-4'>
           <Button
             type='button'
             variant='outline'
             size='sm'
-            onClick={() => setValue('status', 'DRAFT')}
+            onClick={() => void save('DRAFT')}
             disabled={isSubmitting}
           >
             Save as Draft
@@ -602,13 +628,13 @@ export function NewsArticleFormBlockNote({ mode = 'create', articleId }: NewsArt
           <Button type='submit' size='sm' disabled={isSubmitting}>
             {isSubmitting ? (
               <>
-                <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                <Loader2 className='mr-2 h-4 w-4 animate-spin' aria-hidden='true' />
                 Saving…
               </>
             ) : (
               <>
-                <Save className='mr-2 h-4 w-4' />
-                {mode === 'create' ? 'Publish Article' : 'Update Article'}
+                <Save className='mr-2 h-4 w-4' aria-hidden='true' />
+                {mode === 'create' ? 'Create Article' : 'Update Article'}
               </>
             )}
           </Button>

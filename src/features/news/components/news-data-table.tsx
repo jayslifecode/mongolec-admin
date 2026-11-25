@@ -8,23 +8,36 @@ export async function NewsDataTable({
   searchParams: Promise<NewsPageSearchParams>
 }) {
   const params = await searchParams
-  const page = Number(params.page) || 1
-  const pageSize = Number(params.pageSize) || 10
+  const page = Math.max(1, Number(params.page) || 1)
+  const pageSize = Math.max(1, Number(params.pageSize) || 10)
   const search = params.search || ''
 
-  const { data: articles, totalItems } = await getNewsArticles(page, pageSize, {
-    search,
-    status: params.status,
-    priority: params.priority,
-    category: params.category,
-  })
-
-  return (
-    <NewsDataTableClient
-      articles={articles}
-      totalItems={totalItems}
-      currentPage={page}
-      pageSize={pageSize}
-    />
-  )
+  try {
+    const { data: articles, totalItems } = await getNewsArticles(page, pageSize, {
+      search,
+      status: params.status,
+      priority: params.priority,
+      category: params.category,
+    })
+    return (
+      <NewsDataTableClient
+        articles={articles}
+        totalItems={totalItems}
+        currentPage={page}
+        pageSize={pageSize}
+        search={search}
+      />
+    )
+  } catch (error) {
+    return (
+      <NewsDataTableClient
+        articles={[]}
+        totalItems={0}
+        currentPage={page}
+        pageSize={pageSize}
+        search={search}
+        error={error instanceof Error ? error.message : 'Something went wrong.'}
+      />
+    )
+  }
 }

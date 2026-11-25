@@ -52,8 +52,8 @@ export const GET_NEWS_CATEGORIES = gql`
 `
 
 export const GET_NEWS_CATEGORY_BY_ID = gql`
-  query GetNewsCategoryById($id: ID!) {
-    getNewsCategoryById(id: $id) {
+  query GetNewsCategoryById($id: ID!, $language: String) {
+    getNewsCategoryById(id: $id, language: $language) {
       id
       name
       slug
@@ -61,6 +61,17 @@ export const GET_NEWS_CATEGORY_BY_ID = gql`
       color
       createdAt
       updatedAt
+    }
+  }
+`
+
+/** The API returns one language per request; this fetches the Mongolian text so the edit form can hold both. */
+export const GET_NEWS_CATEGORY_MN = gql`
+  query GetNewsCategoryMn($id: ID!) {
+    getNewsCategoryById(id: $id, language: "mn") {
+      id
+      name
+      description
     }
   }
 `
