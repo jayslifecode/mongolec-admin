@@ -56,11 +56,3 @@ export const GET_MERCH_ORDERS = gql`
     }
   }
 `
-
-export const GET_MERCH_ORDER_BY_ID = gql`
-  query GetMerchOrderById($id: ID!) {
-    getMerchOrderById(id: $id) {
-      ${ORDER_FIELDS}
-    }
-  }
-`

@@ -51,7 +51,6 @@ export function ProfileDropdown() {
     try {
       // Call logout mutation to clear httpOnly cookie on backend
       await logoutMutation();
-      console.log("Logout mutation called successfully");
     } catch (error) {
       console.error("Logout error:", error);
     } finally {

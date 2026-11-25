@@ -93,23 +93,3 @@ export const CREATE_NEWS_CATEGORY = gql`
     }
   }
 `
-
-export const UPDATE_NEWS_CATEGORY = gql`
-  mutation UpdateNewsCategory($id: ID!, $input: UpdateNewsCategoryInput!) {
-    updateNewsCategory(id: $id, input: $input) {
-      id
-      name
-      slug
-      description
-      color
-      createdAt
-      updatedAt
-    }
-  }
-`
-
-export const DELETE_NEWS_CATEGORY = gql`
-  mutation DeleteNewsCategory($id: ID!) {
-    deleteNewsCategory(id: $id)
-  }
-`

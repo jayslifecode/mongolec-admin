@@ -122,12 +122,6 @@ export const UPDATE_MERCH_PRODUCT = gql`
   }
 `
 
-export const DELETE_MERCH_PRODUCT = gql`
-  mutation DeleteMerchProduct($id: ID!) {
-    deleteMerchProduct(id: $id)
-  }
-`
-
 export const CREATE_MERCH_CATEGORY = gql`
   mutation CreateMerchCategory($input: CreateMerchCategoryInput!) {
     createMerchCategory(input: $input) {
@@ -151,12 +145,6 @@ export const UPDATE_MERCH_CATEGORY = gql`
       createdAt
       updatedAt
     }
-  }
-`
-
-export const DELETE_MERCH_CATEGORY = gql`
-  mutation DeleteMerchCategory($id: ID!) {
-    deleteMerchCategory(id: $id)
   }
 `
 
