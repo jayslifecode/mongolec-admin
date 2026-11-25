@@ -1,3 +1,5 @@
+import type { StatusTone } from '@/lib/ui/status-tones'
+
 export interface Application {
   id: string
   userId: string
@@ -71,70 +73,19 @@ export interface ApplicationStats {
   confirmed: number
 }
 
-export const applicationStatusConfig = {
-  PENDING: {
-    label: 'Pending',
-    color: 'bg-yellow-200 text-yellow-800 border-yellow-300',
-    variant: 'outline' as const,
-    icon: 'Clock',
-  },
-  UNDER_REVIEW: {
-    label: 'Under Review',
-    color: 'bg-blue-200 text-blue-800 border-blue-300',
-    variant: 'outline' as const,
-    icon: 'FileText',
-  },
-  APPROVED: {
-    label: 'Approved',
-    color: 'bg-green-500 text-white border-green-500',
-    variant: 'default' as const,
-    icon: 'Check',
-  },
-  WAITLIST: {
-    label: 'Waitlisted',
-    color: 'bg-orange-200 text-orange-800 border-orange-300',
-    variant: 'outline' as const,
-    icon: 'Clock',
-  },
-  REJECTED: {
-    label: 'Rejected',
-    color: 'bg-red-500 text-white border-red-500',
-    variant: 'destructive' as const,
-    icon: 'X',
-  },
-  CANCELLED: {
-    label: 'Cancelled',
-    color: 'bg-gray-200 text-gray-800 border-gray-300',
-    variant: 'outline' as const,
-    icon: 'X',
-  },
-  CONFIRMED: {
-    label: 'Confirmed',
-    color: 'bg-purple-500 text-white border-purple-500',
-    variant: 'default' as const,
-    icon: 'Check',
-  },
-} as const
+export const applicationStatusConfig: Record<ApplicationStatus, { label: string; tone: StatusTone }> = {
+  PENDING: { label: 'Pending', tone: 'warning' },
+  UNDER_REVIEW: { label: 'Under Review', tone: 'neutral' },
+  APPROVED: { label: 'Approved', tone: 'success' },
+  WAITLIST: { label: 'Waitlisted', tone: 'warning' },
+  REJECTED: { label: 'Rejected', tone: 'danger' },
+  CANCELLED: { label: 'Cancelled', tone: 'neutral' },
+  CONFIRMED: { label: 'Confirmed', tone: 'primary' },
+}
 
-export const paymentStatusConfig = {
-  PENDING: {
-    label: 'Pending',
-    color: 'bg-gray-200 text-gray-800 border-gray-300',
-    variant: 'outline' as const,
-  },
-  DEPOSIT_PAID: {
-    label: 'Deposit Paid',
-    color: 'bg-blue-500 text-white border-blue-500',
-    variant: 'default' as const,
-  },
-  FULLY_PAID: {
-    label: 'Fully Paid',
-    color: 'bg-green-500 text-white border-green-500',
-    variant: 'default' as const,
-  },
-  REFUNDED: {
-    label: 'Refunded',
-    color: 'bg-red-200 text-red-800 border-red-300',
-    variant: 'outline' as const,
-  },
-} as const
+export const paymentStatusConfig: Record<PaymentStatus, { label: string; tone: StatusTone }> = {
+  PENDING: { label: 'Pending', tone: 'neutral' },
+  DEPOSIT_PAID: { label: 'Deposit Paid', tone: 'warning' },
+  FULLY_PAID: { label: 'Fully Paid', tone: 'success' },
+  REFUNDED: { label: 'Refunded', tone: 'neutral' },
+}

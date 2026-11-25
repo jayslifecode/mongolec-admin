@@ -17,7 +17,6 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -28,6 +27,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { DataTable, createCreatedAtColumn } from '@/components/data-table'
+import { InitialsAvatar, StatusBadge } from '@/components/admin'
+import { QueryError } from '@/features/rallies/components/query-error'
 import type { Application } from '../types'
 import { applicationStatusConfig, paymentStatusConfig } from '../types'
 import {
@@ -39,26 +40,6 @@ import {
 } from './application-actions'
 
 type DialogAction = 'approve' | 'reject' | 'waitlist' | 'confirm' | 'payment' | null
-
-function getInitials(first: string, last: string) {
-  return `${first?.[0] ?? ''}${last?.[0] ?? ''}`.toUpperCase()
-}
-
-function avatarColor(name: string) {
-  const palette = [
-    'bg-rose-100 text-rose-700',
-    'bg-orange-100 text-orange-700',
-    'bg-amber-100 text-amber-700',
-    'bg-lime-100 text-lime-700',
-    'bg-teal-100 text-teal-700',
-    'bg-sky-100 text-sky-700',
-    'bg-violet-100 text-violet-700',
-    'bg-pink-100 text-pink-700',
-  ]
-  let h = 0
-  for (const c of name) h = (h * 31 + c.charCodeAt(0)) & 0xffff
-  return palette[h % palette.length]
-}
 
 function getDisplayName(field: string | { en: string; mn: string } | undefined): string {
   if (!field) return ''
@@ -94,9 +75,14 @@ function ActionsCell({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <MoreHorizontal className="h-4 w-4" />
-            <span className="sr-only">Open menu</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            aria-label={`Actions for ${application.firstName} ${application.lastName}`}
+          >
+            <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
@@ -117,7 +103,7 @@ function ActionsCell({
                 onClick={() => setDialog('approve')}
                 className="flex items-center gap-2"
               >
-                <CheckCircle className="h-4 w-4 text-green-600" />
+                <CheckCircle className="h-4 w-4 text-muted-foreground" />
                 Approve
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -131,7 +117,7 @@ function ActionsCell({
                 onClick={() => setDialog('waitlist')}
                 className="flex items-center gap-2"
               >
-                <Clock className="h-4 w-4 text-amber-600" />
+                <Clock className="h-4 w-4 text-muted-foreground" />
                 Add to Waitlist
               </DropdownMenuItem>
             </>
@@ -144,7 +130,7 @@ function ActionsCell({
                 onClick={() => setDialog('confirm')}
                 className="flex items-center gap-2"
               >
-                <CircleCheck className="h-4 w-4 text-green-600" />
+                <CircleCheck className="h-4 w-4 text-muted-foreground" />
                 Confirm
               </DropdownMenuItem>
             </>
@@ -155,7 +141,7 @@ function ActionsCell({
             onClick={() => setDialog('payment')}
             className="flex items-center gap-2"
           >
-            <CreditCard className="h-4 w-4 text-blue-600" />
+            <CreditCard className="h-4 w-4 text-muted-foreground" />
             Update Payment
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -205,15 +191,9 @@ function buildColumns(onActionComplete?: () => void): ColumnDef<Application>[] {
       cell: ({ row }) => {
         const app = row.original
         const fullName = `${app.firstName} ${app.lastName}`
-        const initials = getInitials(app.firstName, app.lastName)
-        const colorClass = avatarColor(fullName)
         return (
           <div className="flex items-center gap-3">
-            <div
-              className={`flex h-10 w-10 items-center justify-center rounded-full flex-shrink-0 text-sm font-semibold ${colorClass}`}
-            >
-              {initials}
-            </div>
+            <InitialsAvatar name={fullName} size={40} />
             <div className="min-w-0">
               <div className="font-medium text-sm">{fullName}</div>
               <div className="text-xs text-muted-foreground font-mono truncate max-w-[160px]">
@@ -232,7 +212,7 @@ function buildColumns(onActionComplete?: () => void): ColumnDef<Application>[] {
         return (
           <div className="max-w-[200px]">
             <div className="flex items-center gap-1.5">
-              <Trophy className="h-3.5 w-3.5 flex-shrink-0 text-amber-500" />
+              <Trophy className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" aria-hidden="true" />
               <span className="font-medium text-sm truncate">
                 {getDisplayName(app.rally?.title)}
               </span>
@@ -249,19 +229,19 @@ function buildColumns(onActionComplete?: () => void): ColumnDef<Application>[] {
       accessorKey: 'isRider',
       header: 'Role',
       cell: ({ getValue }) => (
-        <Badge variant="outline" className="gap-1.5">
+        <StatusBadge className="gap-1.5">
           {getValue<boolean>() ? (
             <>
-              <Bike className="h-3.5 w-3.5 text-blue-500" />
+              <Bike className="h-3.5 w-3.5" aria-hidden="true" />
               Rider
             </>
           ) : (
             <>
-              <Heart className="h-3.5 w-3.5 text-rose-500" />
+              <Heart className="h-3.5 w-3.5" aria-hidden="true" />
               Supporter
             </>
           )}
-        </Badge>
+        </StatusBadge>
       ),
     },
     {
@@ -269,18 +249,12 @@ function buildColumns(onActionComplete?: () => void): ColumnDef<Application>[] {
       header: 'Status',
       cell: ({ getValue, row }) => {
         const status = getValue<string>()
-        const conf = applicationStatusConfig[status as keyof typeof applicationStatusConfig] ?? {
-          label: status ?? 'Unknown',
-          color: 'bg-gray-100 text-gray-700 border-gray-200',
-          variant: 'outline' as const,
-        }
+        const conf = applicationStatusConfig[status as keyof typeof applicationStatusConfig]
         return (
           <div className="flex flex-col items-start gap-1">
-            <Badge variant={conf.variant} className={conf.color}>
-              {conf.label}
-            </Badge>
+            <StatusBadge tone={conf?.tone ?? 'neutral'}>{conf?.label ?? status ?? 'Unknown'}</StatusBadge>
             {row.original.acceptance && (
-              <span className="text-[11px] font-medium text-emerald-600" data-acceptance-received>
+              <span className="text-[11px] font-medium text-success" data-acceptance-received>
                 Letter received
               </span>
             )}
@@ -299,11 +273,7 @@ function buildColumns(onActionComplete?: () => void): ColumnDef<Application>[] {
             ? 'DEPOSIT_PAID'
             : ((app.paymentStatus as keyof typeof paymentStatusConfig) ?? 'PENDING')
         const conf = paymentStatusConfig[key] ?? paymentStatusConfig['PENDING']
-        return (
-          <Badge variant={conf.variant} className={conf.color}>
-            {conf.label}
-          </Badge>
-        )
+        return <StatusBadge tone={conf.tone}>{conf.label}</StatusBadge>
       },
     },
     createCreatedAtColumn<Application>({ title: 'Applied' }),
@@ -320,11 +290,15 @@ function buildColumns(onActionComplete?: () => void): ColumnDef<Application>[] {
 interface ApplicationsTableProps {
   applications: Application[]
   loading?: boolean
+  error?: string | null
+  onRetry?: () => void
   onActionComplete?: () => void
 }
 
-export function ApplicationsTable({ applications, loading, onActionComplete }: ApplicationsTableProps) {
+export function ApplicationsTable({ applications, loading, error, onRetry, onActionComplete }: ApplicationsTableProps) {
   const columns = buildColumns(onActionComplete)
+
+  if (error) return <QueryError title="Could not load applications" message={error} onRetry={onRetry} />
 
   return (
     <DataTable

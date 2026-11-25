@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { CheckCircle, Clock, Copy, Download, Link2, Loader2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { DetailField, FormSection } from '@/components/admin'
+import { DetailField, FormSection, StatusBadge } from '@/components/admin'
 import { ENSURE_ACCEPTANCE_LINK } from '@/graphql/mutations/applications'
 import { GET_ACCEPTANCE_PASSPORT } from '@/graphql/queries/applications'
 import { formatResponse, roomingLabel } from '@/features/applications/lib/format-response'
@@ -95,18 +95,26 @@ export function AcceptancePanel({ applicationId, status, acceptanceUrl, acceptan
   }
 
   const downloadPassport = async () => {
-    const result = await fetchPassport({ variables: { applicationId } })
-    const file = result.data?.getAcceptancePassport
-    if (!file) {
-      toast.error('Could not download the passport copy')
-      return
+    try {
+      const result = await fetchPassport({ variables: { applicationId } })
+      const file = result.data?.getAcceptancePassport
+      if (!file) {
+        toast.error(result.error?.message || 'Could not download the passport copy')
+        return
+      }
+      downloadBase64(file.fileName, file.mimeType, file.base64)
+    } catch (error) {
+      toast.error(error instanceof Error && error.message ? error.message : 'Could not download the passport copy')
     }
-    downloadBase64(file.fileName, file.mimeType, file.base64)
   }
 
   if (!OPEN_STATUSES.includes(status)) {
     return (
-      <FormSection title="Acceptance letter" description="Sent to the rider once you approve the application">
+      <FormSection
+        title="Acceptance letter"
+        description="Sent to the rider once you approve the application"
+        actions={<StatusBadge>Not started</StatusBadge>}
+      >
         <p className="text-sm text-muted-foreground">Approve the application to create the rider&apos;s private acceptance-letter link.</p>
       </FormSection>
     )
@@ -116,11 +124,11 @@ export function AcceptancePanel({ applicationId, status, acceptanceUrl, acceptan
     <div className="space-y-2">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Rider&apos;s private link</p>
       <div className="flex flex-wrap items-center gap-2">
-        <code className="max-w-full break-all rounded bg-muted px-2 py-1 text-xs" data-acceptance-url>
+        <code className="max-w-full break-all rounded bg-muted px-2 py-1 text-xs" data-acceptance-url aria-label="Acceptance link">
           {acceptanceUrl}
         </code>
-        <Button size="sm" variant="outline" onClick={() => copyLink(acceptanceUrl)}>
-          <Copy className="mr-1.5 h-3.5 w-3.5" />
+        <Button type="button" size="sm" variant="outline" onClick={() => copyLink(acceptanceUrl)}>
+          <Copy className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
           {copied ? 'Copied' : 'Copy link'}
         </Button>
       </div>
@@ -129,17 +137,21 @@ export function AcceptancePanel({ applicationId, status, acceptanceUrl, acceptan
       </p>
     </div>
   ) : (
-    <Button size="sm" variant="outline" onClick={createLink} disabled={isCreatingLink}>
-      {isCreatingLink ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Link2 className="mr-1.5 h-3.5 w-3.5" />}
+    <Button type="button" size="sm" variant="outline" onClick={createLink} disabled={isCreatingLink}>
+      {isCreatingLink ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <Link2 className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />}
       Create acceptance link
     </Button>
   )
 
   if (!acceptance) {
     return (
-      <FormSection title="Acceptance letter" description="Waiting for the rider">
-        <p className="flex items-center gap-2 text-sm text-amber-600">
-          <Clock className="h-4 w-4" /> Not received yet. Confirm becomes available once it arrives.
+      <FormSection
+        title="Acceptance letter"
+        description="Waiting for the rider"
+        actions={<StatusBadge tone="warning">Waiting</StatusBadge>}
+      >
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Clock className="h-4 w-4" aria-hidden="true" /> Not received yet. Confirm becomes available once it arrives.
         </p>
         {linkBlock}
       </FormSection>
@@ -147,27 +159,31 @@ export function AcceptancePanel({ applicationId, status, acceptanceUrl, acceptan
   }
 
   return (
-    <FormSection title="Acceptance letter" description={`Received ${formatDateTime(acceptance.submittedAt)}`}>
+    <FormSection
+      title="Acceptance letter"
+      description={`Received ${formatDateTime(acceptance.submittedAt)}`}
+      actions={<StatusBadge tone="success">Received</StatusBadge>}
+    >
       <div data-acceptance-received className="space-y-4">
-        <p className="flex items-center gap-2 text-sm text-emerald-600">
-          <CheckCircle className="h-4 w-4" /> Commitment Letter and liability agreement accepted.
+        <p className="flex items-center gap-2 text-sm text-success">
+          <CheckCircle className="h-4 w-4" aria-hidden="true" /> Commitment Letter and liability agreement accepted.
         </p>
 
-        <div className="grid gap-4 sm:grid-cols-[auto_1fr]">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-[auto_1fr]">
           {acceptance.usePastPhotoAndBio ? (
             <p className="text-sm text-muted-foreground sm:col-span-2">Reusing their past photo and bio.</p>
           ) : (
             <>
               {acceptance.photoUrl && (
                 // eslint-disable-next-line @next/next/no-img-element -- remote rider photo preview
-                <img src={acceptance.photoUrl} alt="Rider photo" className="h-40 w-32 rounded-md border object-cover" />
+                <img src={acceptance.photoUrl} alt="Photo submitted by the rider" className="h-40 w-32 rounded-md border object-cover" />
               )}
               <DetailField label="Bio" value={acceptance.bio && <span className="whitespace-pre-wrap">{acceptance.bio}</span>} />
             </>
           )}
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <DetailField label="Name on letter" value={`${acceptance.firstName} ${acceptance.lastName}`} />
           <DetailField label="Email" value={acceptance.email} />
           <DetailField label="Shipping address" value={formatResponse(acceptance.shippingAddress)} />
@@ -180,8 +196,8 @@ export function AcceptancePanel({ applicationId, status, acceptanceUrl, acceptan
 
         <div className="flex flex-wrap items-center gap-3">
           {acceptance.hasPassport ? (
-            <Button size="sm" variant="outline" onClick={downloadPassport} disabled={isDownloading}>
-              {isDownloading ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Download className="mr-1.5 h-3.5 w-3.5" />}
+            <Button type="button" size="sm" variant="outline" onClick={downloadPassport} disabled={isDownloading}>
+              {isDownloading ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <Download className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />}
               Download passport copy{acceptance.passportFileName ? ` (${acceptance.passportFileName})` : ''}
             </Button>
           ) : (

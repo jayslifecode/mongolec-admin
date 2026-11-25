@@ -31,6 +31,13 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback
+}
+
+// The backend requires a rejection reason, so an empty one is sent as this default.
+const DEFAULT_REJECTION_REASON = 'No reason given'
+
 type PaymentOption = 'PENDING' | 'DEPOSIT_PAID' | 'FULLY_PAID'
 
 function paymentToArgs(option: PaymentOption) {
@@ -69,8 +76,8 @@ export function ApproveDialog({ open, onOpenChange, applicationId, onActionCompl
       onOpenChange(false)
       setNotes('')
       onActionComplete?.()
-    } catch {
-      toast.error('Failed to approve application')
+    } catch (error) {
+      toast.error(errorMessage(error, 'Failed to approve application'))
     }
   }
 
@@ -92,9 +99,9 @@ export function ApproveDialog({ open, onOpenChange, applicationId, onActionCompl
           />
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
-          <Button onClick={handleApprove} disabled={loading}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button type="button" onClick={handleApprove} disabled={loading}>
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
             Approve
           </Button>
         </DialogFooter>
@@ -120,16 +127,15 @@ export function RejectDialog({ open, onOpenChange, applicationId, onActionComple
   })
 
   const handleReject = async () => {
-    if (!reason.trim()) { toast.error('Please provide a reason'); return }
     try {
-      await rejectApplication({ variables: { id: applicationId, reason } })
+      await rejectApplication({ variables: { id: applicationId, reason: reason.trim() || DEFAULT_REJECTION_REASON } })
       toast.success('Application rejected')
       router.refresh()
       onOpenChange(false)
       setReason('')
       onActionComplete?.()
-    } catch {
-      toast.error('Failed to reject application')
+    } catch (error) {
+      toast.error(errorMessage(error, 'Failed to reject application'))
     }
   }
 
@@ -138,10 +144,12 @@ export function RejectDialog({ open, onOpenChange, applicationId, onActionComple
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Reject Application</DialogTitle>
-          <DialogDescription>Provide a reason for rejecting this application.</DialogDescription>
+          <DialogDescription>
+            This marks the application as rejected. A reason is optional but helps your team later.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-2 py-4">
-          <Label htmlFor="reject-reason">Reason *</Label>
+          <Label htmlFor="reject-reason">Reason (optional)</Label>
           <Textarea
             id="reject-reason"
             placeholder="Explain why this application is being rejected..."
@@ -151,10 +159,10 @@ export function RejectDialog({ open, onOpenChange, applicationId, onActionComple
           />
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
-          <Button variant="destructive" onClick={handleReject} disabled={loading}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Reject
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button type="button" variant="destructive" onClick={handleReject} disabled={loading}>
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
+            Reject application
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -186,8 +194,8 @@ export function WaitlistDialog({ open, onOpenChange, applicationId, onActionComp
       onOpenChange(false)
       setNotes('')
       onActionComplete?.()
-    } catch {
-      toast.error('Failed to waitlist application')
+    } catch (error) {
+      toast.error(errorMessage(error, 'Failed to waitlist application'))
     }
   }
 
@@ -209,9 +217,9 @@ export function WaitlistDialog({ open, onOpenChange, applicationId, onActionComp
           />
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
-          <Button onClick={handleWaitlist} disabled={loading}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button type="button" onClick={handleWaitlist} disabled={loading}>
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
             Add to Waitlist
           </Button>
         </DialogFooter>
@@ -242,8 +250,8 @@ export function ConfirmDialog({ open, onOpenChange, applicationId, onActionCompl
       router.refresh()
       onOpenChange(false)
       onActionComplete?.()
-    } catch {
-      toast.error('Failed to confirm application')
+    } catch (error) {
+      toast.error(errorMessage(error, 'Failed to confirm application'))
     }
   }
 
@@ -252,12 +260,12 @@ export function ConfirmDialog({ open, onOpenChange, applicationId, onActionCompl
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Confirm Application</DialogTitle>
-          <DialogDescription>Confirm this applicant's participation in the rally.</DialogDescription>
+          <DialogDescription>Confirm this applicant&apos;s participation in the rally.</DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
-          <Button onClick={handleConfirm} disabled={loading}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button type="button" onClick={handleConfirm} disabled={loading}>
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
             Confirm
           </Button>
         </DialogFooter>
@@ -299,8 +307,8 @@ export function UpdatePaymentDialog({
       router.refresh()
       onOpenChange(false)
       onActionComplete?.()
-    } catch {
-      toast.error('Failed to update payment status')
+    } catch (error) {
+      toast.error(errorMessage(error, 'Failed to update payment status'))
     }
   }
 
@@ -325,9 +333,9 @@ export function UpdatePaymentDialog({
           </Select>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
-          <Button onClick={handleUpdate} disabled={loading || selected === currentOption}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button type="button" onClick={handleUpdate} disabled={loading || selected === currentOption}>
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
             Update
           </Button>
         </DialogFooter>
@@ -348,7 +356,7 @@ export function ApproveButton({ applicationId, onActionComplete }: LegacyProps) 
   const [open, setOpen] = useState(false)
   return (
     <>
-      <Button size="sm" onClick={() => setOpen(true)}>Approve</Button>
+      <Button type="button" size="sm" onClick={() => setOpen(true)}>Approve</Button>
       <ApproveDialog open={open} onOpenChange={setOpen} applicationId={applicationId} onActionComplete={onActionComplete} />
     </>
   )
@@ -358,7 +366,7 @@ export function RejectButton({ applicationId, onActionComplete }: LegacyProps) {
   const [open, setOpen] = useState(false)
   return (
     <>
-      <Button size="sm" variant="destructive" onClick={() => setOpen(true)}>Reject</Button>
+      <Button type="button" size="sm" variant="destructive" onClick={() => setOpen(true)}>Reject</Button>
       <RejectDialog open={open} onOpenChange={setOpen} applicationId={applicationId} onActionComplete={onActionComplete} />
     </>
   )
@@ -368,7 +376,7 @@ export function WaitlistButton({ applicationId, onActionComplete }: LegacyProps)
   const [open, setOpen] = useState(false)
   return (
     <>
-      <Button size="sm" variant="outline" onClick={() => setOpen(true)}>Waitlist</Button>
+      <Button type="button" size="sm" variant="outline" onClick={() => setOpen(true)}>Waitlist</Button>
       <WaitlistDialog open={open} onOpenChange={setOpen} applicationId={applicationId} onActionComplete={onActionComplete} />
     </>
   )
@@ -378,7 +386,7 @@ export function ConfirmButton({ applicationId, onActionComplete }: LegacyProps) 
   const [open, setOpen] = useState(false)
   return (
     <>
-      <Button size="sm" onClick={() => setOpen(true)}>Confirm</Button>
+      <Button type="button" size="sm" onClick={() => setOpen(true)}>Confirm</Button>
       <ConfirmDialog open={open} onOpenChange={setOpen} applicationId={applicationId} onActionComplete={onActionComplete} />
     </>
   )
@@ -391,7 +399,7 @@ export function UpdatePaymentStatusButton({
   const [open, setOpen] = useState(false)
   return (
     <>
-      <Button size="sm" variant="outline" onClick={() => setOpen(true)}>Update Payment</Button>
+      <Button type="button" size="sm" variant="outline" onClick={() => setOpen(true)}>Update Payment</Button>
       <UpdatePaymentDialog open={open} onOpenChange={setOpen} applicationId={applicationId} onActionComplete={onActionComplete} />
     </>
   )

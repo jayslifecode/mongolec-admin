@@ -33,7 +33,7 @@ export default function RallyEditPage() {
 
   if (error || !data?.getRally) {
     return (
-      <div className="space-y-4 max-w-4xl mx-auto">
+      <div className="space-y-6 max-w-4xl mx-auto">
         <PageHeader title="Edit Rally" backHref="/rallies" />
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -47,7 +47,7 @@ export default function RallyEditPage() {
   const title = typeof rally.title === 'string' ? rally.title : rally.title?.en || 'Edit Rally'
 
   return (
-    <div className="space-y-5 max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-4xl mx-auto">
       <PageHeader
         title={title}
         description="Update rally information and settings"
@@ -55,7 +55,7 @@ export default function RallyEditPage() {
         lang={language}
         onLangChange={setLanguage}
       />
-      <RallyForm mode="edit" language={language} rallyId={rallyId} initialData={rally} />
+      <RallyForm mode="edit" language={language} onLanguageChange={setLanguage} rallyId={rallyId} initialData={rally} />
     </div>
   )
 }

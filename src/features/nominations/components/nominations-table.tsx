@@ -9,11 +9,9 @@ import {
   FileText,
   CheckCircle,
   XCircle,
-  Trophy,
 } from 'lucide-react'
 import Link from 'next/link'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -24,11 +22,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { DataTable, createCreatedAtColumn } from '@/components/data-table'
+import { StatusBadge } from '@/components/admin'
+import { QueryError } from '@/features/rallies/components/query-error'
 import type { Nomination } from '../types'
 import { nominationStatusConfig } from '../types'
-import { ApproveDialog, RejectDialog, SelectDialog } from './nomination-actions'
+import { ApproveDialog, RejectDialog } from './nomination-actions'
 
-type DialogAction = 'approve' | 'reject' | 'select' | null
+type DialogAction = 'approve' | 'reject' | null
 
 
 function getDisplayName(field: string | { en: string; mn: string } | undefined): string {
@@ -56,9 +56,14 @@ function ActionsCell({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <MoreHorizontal className="h-4 w-4" />
-            <span className="sr-only">Open menu</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            aria-label={`Actions for ${getDisplayName(nomination.parkNames) || 'nomination'}`}
+          >
+            <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
@@ -79,7 +84,7 @@ function ActionsCell({
                 onClick={() => setDialog('approve')}
                 className="flex items-center gap-2"
               >
-                <CheckCircle className="h-4 w-4 text-green-600" />
+                <CheckCircle className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                 Approve
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -92,18 +97,6 @@ function ActionsCell({
             </>
           )}
 
-          {nomination.status === 'APPROVED' && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => setDialog('select')}
-                className="flex items-center gap-2"
-              >
-                <Trophy className="h-4 w-4 text-purple-600" />
-                Select for Rally
-              </DropdownMenuItem>
-            </>
-          )}
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -115,12 +108,6 @@ function ActionsCell({
       />
       <RejectDialog
         open={dialog === 'reject'}
-        onOpenChange={(o) => !o && closeDialog()}
-        nominationId={nomination.id}
-        onActionComplete={handleComplete}
-      />
-      <SelectDialog
-        open={dialog === 'select'}
         onOpenChange={(o) => !o && closeDialog()}
         nominationId={nomination.id}
         onActionComplete={handleComplete}
@@ -140,8 +127,8 @@ function buildColumns(onActionComplete?: () => void): ColumnDef<Nomination>[] {
         const subtextParts = [nomination.country, website].filter(Boolean)
         return (
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-green-100 bg-green-50">
-              <MapPin className="h-4 w-4 text-green-600" />
+            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-border bg-muted">
+              <MapPin className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
             </div>
             <div className="min-w-0">
               <div className="font-medium text-sm truncate max-w-[180px]">
@@ -175,16 +162,8 @@ function buildColumns(onActionComplete?: () => void): ColumnDef<Nomination>[] {
       header: 'Status',
       cell: ({ getValue }) => {
         const status = getValue<string>()
-        const conf = nominationStatusConfig[status as keyof typeof nominationStatusConfig] ?? {
-          label: status ?? 'Unknown',
-          color: 'bg-gray-100 text-gray-700 border-gray-200',
-          variant: 'outline' as const,
-        }
-        return (
-          <Badge variant={conf.variant} className={conf.color}>
-            {conf.label}
-          </Badge>
-        )
+        const conf = nominationStatusConfig[status as keyof typeof nominationStatusConfig]
+        return <StatusBadge tone={conf?.tone ?? 'neutral'}>{conf?.label ?? status ?? 'Unknown'}</StatusBadge>
       },
     },
     createCreatedAtColumn<Nomination>({ title: 'Submitted' }),
@@ -201,11 +180,15 @@ function buildColumns(onActionComplete?: () => void): ColumnDef<Nomination>[] {
 interface NominationsTableProps {
   nominations: Nomination[]
   loading?: boolean
+  error?: string | null
+  onRetry?: () => void
   onActionComplete?: () => void
 }
 
-export function NominationsTable({ nominations, loading, onActionComplete }: NominationsTableProps) {
+export function NominationsTable({ nominations, loading, error, onRetry, onActionComplete }: NominationsTableProps) {
   const columns = buildColumns(onActionComplete)
+
+  if (error) return <QueryError title="Could not load nominations" message={error} onRetry={onRetry} />
 
   return (
     <DataTable
