@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Eye } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import { StatusBadge } from '@/components/admin'
 import { Button } from '@/components/ui/button'
 import { DataTable, createCreatedAtColumn } from '@/components/data-table'
 import { MerchOrderDetailDialog } from './merch-order-detail-dialog'
@@ -61,14 +61,8 @@ function buildColumns(
         return (
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <Badge variant="outline" className={conf?.color ?? ''}>
-                {conf?.label ?? order.status}
-              </Badge>
-              {order.paymentClaimedAt && (
-                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
-                  Төлбөр төлсөн ✓
-                </Badge>
-              )}
+              <StatusBadge tone={conf?.tone ?? 'neutral'}>{conf?.label ?? order.status}</StatusBadge>
+              {order.paymentClaimedAt && <StatusBadge tone="success">Payment claimed</StatusBadge>}
             </div>
             <span className="text-xs text-muted-foreground">
               {order.deliveryMethod === 'PICKUP' ? 'Pickup' : 'Delivery'}
@@ -83,13 +77,14 @@ function buildColumns(
       enableHiding: false,
       cell: ({ row }) => (
         <Button
+          type="button"
           variant="ghost"
           size="icon"
           className="h-8 w-8"
+          aria-label={`View order ${row.original.orderNumber}`}
           onClick={() => onViewClick(row.original)}
         >
-          <Eye className="h-4 w-4" />
-          <span className="sr-only">View order</span>
+          <Eye className="h-4 w-4" aria-hidden="true" />
         </Button>
       ),
     },
@@ -98,9 +93,10 @@ function buildColumns(
 
 interface MerchOrdersTableProps {
   orders: MerchOrder[]
+  loading?: boolean
 }
 
-export function MerchOrdersTable({ orders }: MerchOrdersTableProps) {
+export function MerchOrdersTable({ orders, loading }: MerchOrdersTableProps) {
   const [selectedOrder, setSelectedOrder] = useState<MerchOrder | null>(null)
 
   const columns = buildColumns(setSelectedOrder)
@@ -110,9 +106,10 @@ export function MerchOrdersTable({ orders }: MerchOrdersTableProps) {
       <DataTable
         data={orders}
         columns={columns}
+        loading={loading}
         showIndexColumn={false}
         emptyMessage="No orders found."
-        toolbarConfig={{ searchPlaceholder: 'Search orders...' }}
+        toolbarConfig={{ searchPlaceholder: 'Search orders…' }}
       />
       <MerchOrderDetailDialog
         order={selectedOrder}

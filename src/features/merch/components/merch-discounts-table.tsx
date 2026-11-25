@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Edit, Trash2, MoreHorizontal } from 'lucide-react'
 import Link from 'next/link'
@@ -8,6 +9,8 @@ import { useMutation } from '@apollo/client/react'
 import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
+import { StatusBadge } from '@/components/admin'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -22,28 +25,18 @@ import { DELETE_MERCH_DISCOUNT } from '@/graphql/mutations/merch'
 import { GET_MERCH_DISCOUNTS } from '@/graphql/queries/merch'
 import type { MerchDiscount } from '../types'
 
-function ActionsCell({ discount }: { discount: MerchDiscount }) {
-  const [deleteDiscount] = useMutation(DELETE_MERCH_DISCOUNT, {
-    refetchQueries: [{ query: GET_MERCH_DISCOUNTS }],
-    onCompleted: () => {
-      toast.success('Discount deleted successfully')
-    },
-    onError: (error) => {
-      toast.error(error.message || 'Failed to delete discount')
-    },
-  })
-
-  const handleDelete = () => {
-    if (!confirm(`Delete discount "${discount.name}"? This cannot be undone.`)) return
-    deleteDiscount({ variables: { id: discount.id } })
-  }
-
+function ActionsCell({
+  discount,
+  onDelete,
+}: {
+  discount: MerchDiscount
+  onDelete: (discount: MerchDiscount) => void
+}) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8">
-          <MoreHorizontal className="h-4 w-4" />
-          <span className="sr-only">Open menu</span>
+        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={`Actions for ${discount.name}`}>
+          <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
@@ -55,7 +48,7 @@ function ActionsCell({ discount }: { discount: MerchDiscount }) {
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleDelete} className="text-destructive">
+        <DropdownMenuItem onClick={() => onDelete(discount)} className="text-destructive">
           <Trash2 className="mr-2 h-4 w-4" />
           Delete
         </DropdownMenuItem>
@@ -64,7 +57,8 @@ function ActionsCell({ discount }: { discount: MerchDiscount }) {
   )
 }
 
-const columns: ColumnDef<MerchDiscount>[] = [
+function buildColumns(onDelete: (discount: MerchDiscount) => void): ColumnDef<MerchDiscount>[] {
+  return [
   {
     accessorKey: 'name',
     header: 'Name',
@@ -76,9 +70,7 @@ const columns: ColumnDef<MerchDiscount>[] = [
     cell: ({ getValue }) => {
       const type = getValue<string>()
       return (
-        <Badge variant={type === 'PERCENT' ? 'default' : 'secondary'}>
-          {type}
-        </Badge>
+        <StatusBadge>{type === 'PERCENT' ? 'Percent' : 'Amount'}</StatusBadge>
       )
     },
   },
@@ -89,7 +81,7 @@ const columns: ColumnDef<MerchDiscount>[] = [
       const { type, value } = row.original
       return (
         <span className="font-mono text-sm">
-          {type === 'PERCENT' ? `${value}%` : `$${value.toFixed(2)}`}
+          {type === 'PERCENT' ? `${value}%` : `₮${value.toLocaleString()}`}
         </span>
       )
     },
@@ -113,9 +105,9 @@ const columns: ColumnDef<MerchDiscount>[] = [
     accessorKey: 'isActive',
     header: 'Active',
     cell: ({ getValue }) => (
-      <Badge variant={getValue<boolean>() ? 'default' : 'outline'}>
+      <StatusBadge tone={getValue<boolean>() ? 'success' : 'neutral'}>
         {getValue<boolean>() ? 'Active' : 'Inactive'}
-      </Badge>
+      </StatusBadge>
     ),
   },
   {
@@ -129,22 +121,51 @@ const columns: ColumnDef<MerchDiscount>[] = [
   {
     id: 'actions',
     enableHiding: false,
-    cell: ({ row }) => <ActionsCell discount={row.original} />,
+    cell: ({ row }) => <ActionsCell discount={row.original} onDelete={onDelete} />,
   },
-]
+  ]
+}
 
 interface MerchDiscountsTableProps {
   discounts?: MerchDiscount[]
+  loading?: boolean
 }
 
-export function MerchDiscountsTable({ discounts = [] }: MerchDiscountsTableProps) {
+export function MerchDiscountsTable({ discounts = [], loading }: MerchDiscountsTableProps) {
+  const [discountToDelete, setDiscountToDelete] = useState<MerchDiscount | null>(null)
+  const [deleteDiscount, { loading: isDeleting }] = useMutation(DELETE_MERCH_DISCOUNT, {
+    refetchQueries: [{ query: GET_MERCH_DISCOUNTS, variables: { limit: 100, offset: 0 } }],
+  })
+
+  const handleConfirmDelete = async () => {
+    if (!discountToDelete) return
+    try {
+      await deleteDiscount({ variables: { id: discountToDelete.id } })
+      toast.success('Discount deleted successfully')
+      setDiscountToDelete(null)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete discount')
+    }
+  }
+
   return (
-    <DataTable
-      data={discounts}
-      columns={columns}
-      showIndexColumn={false}
-      emptyMessage="No discounts found."
-      toolbarConfig={{ searchPlaceholder: 'Search discounts...' }}
-    />
+    <>
+      <DataTable
+        data={discounts}
+        columns={buildColumns(setDiscountToDelete)}
+        loading={loading}
+        showIndexColumn={false}
+        emptyMessage="No discounts found."
+        toolbarConfig={{ searchPlaceholder: 'Search discounts…' }}
+      />
+      <ConfirmDialog
+        open={!!discountToDelete}
+        onOpenChange={(open) => !open && setDiscountToDelete(null)}
+        title="Delete this discount?"
+        description={`"${discountToDelete?.name ?? ''}" will be permanently deleted. This cannot be undone.`}
+        isPending={isDeleting}
+        onConfirm={handleConfirmDelete}
+      />
+    </>
   )
 }
