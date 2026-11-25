@@ -6,13 +6,13 @@ import { useMutation } from '@apollo/client/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { AlertCircle, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { CREATE_PARK_PARTNERSHIP, UPDATE_PARK_PARTNERSHIP } from '@/graphql/mutations/rangers'
-import { FormSection } from '@/components/admin'
+import { FormField, FormSection } from '@/components/admin'
+import { validateParkPartnerForm } from '../lib/validation'
 import type { ParkPartnership } from '../types'
 
 interface RangerFormProps {
@@ -20,6 +20,8 @@ interface RangerFormProps {
   language: 'en' | 'mn'
   initialData?: ParkPartnership
   rangerId?: string
+  /** Lets the form switch the page's language tab to the one that holds an error. */
+  onLanguageChange?: (language: 'en' | 'mn') => void
 }
 
 const normalizeLangField = (field: string | { en: string; mn: string } | undefined) => {
@@ -28,9 +30,10 @@ const normalizeLangField = (field: string | { en: string; mn: string } | undefin
   return field
 }
 
-export function RangerForm({ mode, language, initialData, rangerId }: RangerFormProps) {
+export function RangerForm({ mode, language, initialData, rangerId, onLanguageChange }: RangerFormProps) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const [formData, setFormData] = useState({
     parkName: normalizeLangField(initialData?.parkName),
@@ -48,7 +51,7 @@ export function RangerForm({ mode, language, initialData, rangerId }: RangerForm
 
   const [createPartnership, { loading: createLoading }] = useMutation(CREATE_PARK_PARTNERSHIP, {
     onCompleted: () => {
-      toast.success('Park partner added successfully')
+      toast.success('Park partner added')
       router.push('/rangers')
     },
     onError: (err) => {
@@ -59,7 +62,7 @@ export function RangerForm({ mode, language, initialData, rangerId }: RangerForm
 
   const [updatePartnership, { loading: updateLoading }] = useMutation(UPDATE_PARK_PARTNERSHIP, {
     onCompleted: () => {
-      toast.success('Park partner updated successfully')
+      toast.success('Park partner updated')
       router.push('/rangers')
     },
     onError: (err) => {
@@ -85,27 +88,40 @@ export function RangerForm({ mode, language, initialData, rangerId }: RangerForm
     e.preventDefault()
     setError(null)
 
-    if (!formData.parkName.en.trim()) {
-      setError('Park name (English) is required')
-      return
-    }
-    if (!formData.country.trim()) {
-      setError('Country is required')
+    const rangersCount = formData.rangersCount.trim() === '' ? 0 : Number(formData.rangersCount)
+    const errors = validateParkPartnerForm({
+      parkName: formData.parkName,
+      country: formData.country,
+      rangersCount,
+      contactEmail: formData.contactEmail.trim(),
+      contactPhone: formData.contactPhone.trim(),
+    })
+    setFieldErrors(errors)
+    const firstKey = Object.keys(errors)[0]
+    if (firstKey) {
+      toast.error('Please fix the highlighted fields')
+      if (firstKey === 'parkName.en' && language !== 'en') {
+        onLanguageChange?.('en')
+        setError('The park name is missing in English. Switched to the English tab.')
+      }
+      const targetId = `partner-${firstKey.split('.')[0]}`
+      // Wait a tick so the English tab is mounted before focusing.
+      setTimeout(() => document.getElementById(targetId)?.focus(), 0)
       return
     }
 
     const input = {
-      parkName: formData.parkName,
-      country: formData.country,
+      parkName: { en: formData.parkName.en.trim(), mn: formData.parkName.mn.trim() },
+      country: formData.country.trim(),
       location: formData.location,
       establishedDate: formData.establishedDate || null,
       partnershipType: formData.partnershipType,
-      rangersCount: parseInt(formData.rangersCount) || 0,
+      rangersCount,
       areaSize: formData.areaSize.en || formData.areaSize.mn ? formData.areaSize : null,
       keyChallenges: formData.keyChallenges.en || formData.keyChallenges.mn ? formData.keyChallenges : null,
-      contactPerson: formData.contactPerson || null,
-      contactEmail: formData.contactEmail || null,
-      contactPhone: formData.contactPhone || null,
+      contactPerson: formData.contactPerson.trim() || null,
+      contactEmail: formData.contactEmail.trim() || null,
+      contactPhone: formData.contactPhone.trim() || null,
     }
 
     if (mode === 'create') {
@@ -118,138 +134,168 @@ export function RangerForm({ mode, language, initialData, rangerId }: RangerForm
   const ph = (en: string, mn: string) => (language === 'en' ? en : mn)
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} noValidate className="space-y-6">
       {error && (
         <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
+          <AlertCircle className="h-4 w-4" aria-hidden="true" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
-      <FormSection title="Basic Information">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label>Park Name *</Label>
-            <Input
-              value={formData.parkName[language]}
-              onChange={(e) => handleLangFieldChange('parkName', e.target.value)}
-              placeholder={ph('Park name in English', 'Паркийн нэр')}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Country</Label>
-            <Input
-              value={formData.country}
-              onChange={(e) => handleInputChange('country', e.target.value)}
-              placeholder="Enter country"
-              required
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Established Date</Label>
-            <Input
-              type="date"
-              value={formData.establishedDate}
-              onChange={(e) => handleInputChange('establishedDate', e.target.value)}
-            />
-          </div>
+      <FormSection title="Basic information">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormField
+            id="partner-parkName"
+            label={`Park name (${language.toUpperCase()})`}
+            required
+            description={language === 'mn' ? 'The English name is required.' : undefined}
+            error={language === 'en' ? fieldErrors['parkName.en'] : undefined}
+          >
+            {(props) => (
+              <Input
+                {...props}
+                value={formData.parkName[language]}
+                onChange={(e) => handleLangFieldChange('parkName', e.target.value)}
+                placeholder={ph('Park name in English', 'Паркийн нэр')}
+              />
+            )}
+          </FormField>
+          <FormField id="partner-country" label="Country" required error={fieldErrors.country}>
+            {(props) => (
+              <Input
+                {...props}
+                value={formData.country}
+                onChange={(e) => handleInputChange('country', e.target.value)}
+                placeholder="Enter country"
+              />
+            )}
+          </FormField>
+          <FormField id="partner-establishedDate" label="Established date">
+            {(props) => (
+              <Input
+                {...props}
+                type="date"
+                value={formData.establishedDate}
+                onChange={(e) => handleInputChange('establishedDate', e.target.value)}
+              />
+            )}
+          </FormField>
         </div>
       </FormSection>
 
-      <FormSection title="Location & Partnership">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label>Location</Label>
-            <Input
-              value={formData.location[language]}
-              onChange={(e) => handleLangFieldChange('location', e.target.value)}
-              placeholder={ph('Location in English', 'Байршил')}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Partnership Type</Label>
-            <Input
-              value={formData.partnershipType[language]}
-              onChange={(e) => handleLangFieldChange('partnershipType', e.target.value)}
-              placeholder={ph('E.g., National Park, Reserve', 'Түнш төрөл')}
-            />
-          </div>
+      <FormSection title="Location and partnership">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormField id="partner-location" label={`Location (${language.toUpperCase()})`}>
+            {(props) => (
+              <Input
+                {...props}
+                value={formData.location[language]}
+                onChange={(e) => handleLangFieldChange('location', e.target.value)}
+                placeholder={ph('Location in English', 'Байршил')}
+              />
+            )}
+          </FormField>
+          <FormField id="partner-partnershipType" label={`Partnership type (${language.toUpperCase()})`}>
+            {(props) => (
+              <Input
+                {...props}
+                value={formData.partnershipType[language]}
+                onChange={(e) => handleLangFieldChange('partnershipType', e.target.value)}
+                placeholder={ph('E.g., National Park, Reserve', 'Түнш төрөл')}
+              />
+            )}
+          </FormField>
         </div>
       </FormSection>
 
-      <FormSection title="Area & Rangers">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label>Area Size</Label>
-            <Input
-              value={formData.areaSize[language]}
-              onChange={(e) => handleLangFieldChange('areaSize', e.target.value)}
-              placeholder={ph('E.g., 50,000 km²', '50,000 км²')}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Number of Rangers</Label>
-            <Input
-              type="number"
-              value={formData.rangersCount}
-              onChange={(e) => handleInputChange('rangersCount', e.target.value)}
-              placeholder="0"
-              min="0"
-            />
-          </div>
+      <FormSection title="Area and rangers">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormField id="partner-areaSize" label={`Area size (${language.toUpperCase()})`}>
+            {(props) => (
+              <Input
+                {...props}
+                value={formData.areaSize[language]}
+                onChange={(e) => handleLangFieldChange('areaSize', e.target.value)}
+                placeholder={ph('E.g., 50,000 km²', '50,000 км²')}
+              />
+            )}
+          </FormField>
+          <FormField id="partner-rangersCount" label="Number of rangers" error={fieldErrors.rangersCount}>
+            {(props) => (
+              <Input
+                {...props}
+                type="number"
+                inputMode="numeric"
+                min={0}
+                step={1}
+                value={formData.rangersCount}
+                onChange={(e) => handleInputChange('rangersCount', e.target.value)}
+                placeholder="0"
+              />
+            )}
+          </FormField>
         </div>
 
-        <div className="mt-4 space-y-1.5">
-          <Label>Key Challenges</Label>
-          <Textarea
-            value={formData.keyChallenges[language]}
-            onChange={(e) => handleLangFieldChange('keyChallenges', e.target.value)}
-            placeholder={ph('Describe key challenges', 'Гол сорилтууд')}
-            className="min-h-24"
-          />
+        <FormField id="partner-keyChallenges" label={`Key challenges (${language.toUpperCase()})`}>
+          {(props) => (
+            <Textarea
+              {...props}
+              value={formData.keyChallenges[language]}
+              onChange={(e) => handleLangFieldChange('keyChallenges', e.target.value)}
+              placeholder={ph('Describe key challenges', 'Гол сорилтууд')}
+              className="min-h-24"
+            />
+          )}
+        </FormField>
+      </FormSection>
+
+      <FormSection title="Contact person">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormField id="partner-contactPerson" label="Name" className="sm:col-span-2">
+            {(props) => (
+              <Input
+                {...props}
+                value={formData.contactPerson}
+                onChange={(e) => handleInputChange('contactPerson', e.target.value)}
+                placeholder="Contact person name"
+                className="max-w-sm"
+              />
+            )}
+          </FormField>
+          <FormField id="partner-contactEmail" label="Email" error={fieldErrors.contactEmail}>
+            {(props) => (
+              <Input
+                {...props}
+                type="email"
+                value={formData.contactEmail}
+                onChange={(e) => handleInputChange('contactEmail', e.target.value)}
+                placeholder="email@example.com"
+              />
+            )}
+          </FormField>
+          <FormField id="partner-contactPhone" label="Phone" error={fieldErrors.contactPhone}>
+            {(props) => (
+              <Input
+                {...props}
+                type="tel"
+                value={formData.contactPhone}
+                onChange={(e) => handleInputChange('contactPhone', e.target.value)}
+                placeholder="+976 ..."
+              />
+            )}
+          </FormField>
         </div>
       </FormSection>
 
-      <FormSection title="Contact Person">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label>Name</Label>
-            <Input
-              value={formData.contactPerson}
-              onChange={(e) => handleInputChange('contactPerson', e.target.value)}
-              placeholder="Contact person name"
-              className="max-w-sm"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Email</Label>
-            <Input
-              type="email"
-              value={formData.contactEmail}
-              onChange={(e) => handleInputChange('contactEmail', e.target.value)}
-              placeholder="email@example.com"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Phone</Label>
-            <Input
-              value={formData.contactPhone}
-              onChange={(e) => handleInputChange('contactPhone', e.target.value)}
-              placeholder="+976 ..."
-            />
-          </div>
-        </div>
-      </FormSection>
-
-      <div className="sticky bottom-0 z-10 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <div className="border-border bg-background sticky bottom-0 z-10 border-t">
         <div className="flex items-center gap-3 py-4">
           <Button type="submit" disabled={loading} className="min-w-[160px]">
-            {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {mode === 'create' ? 'Add Park Partner' : 'Save Changes'}
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
+            {mode === 'create' ? 'Add park partner' : 'Save changes'}
           </Button>
-          <Link href="/rangers">
-            <Button type="button" variant="outline">Cancel</Button>
-          </Link>
+          <Button type="button" variant="outline" asChild>
+            <Link href="/rangers">Cancel</Link>
+          </Button>
         </div>
       </div>
     </form>

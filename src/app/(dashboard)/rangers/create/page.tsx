@@ -8,15 +8,15 @@ export default function CreateRangerPage() {
   const [language, setLanguage] = useState<'en' | 'mn'>('en')
 
   return (
-    <div className="space-y-5 max-w-4xl mx-auto">
+    <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader
-        title="Add Park Partner"
-        description="Register a new park partnership"
+        title="Add park partner"
+        description="Register a park that partners with Rally for Rangers"
         backHref="/rangers"
         lang={language}
         onLangChange={setLanguage}
       />
-      <RangerForm mode="create" language={language} />
+      <RangerForm mode="create" language={language} onLanguageChange={setLanguage} />
     </div>
   )
 }

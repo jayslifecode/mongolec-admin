@@ -21,29 +21,12 @@ export interface ParkPartnership {
 
 export type PartnershipStatus = 'PROPOSED' | 'ACTIVE' | 'INACTIVE' | 'HISTORICAL'
 
-export const partnershipStatusConfig = {
-  PROPOSED: {
-    label: 'Proposed',
-    color: 'bg-yellow-200 text-yellow-800 border-yellow-300',
-    variant: 'outline' as const,
-    icon: 'Clock',
-  },
-  ACTIVE: {
-    label: 'Active',
-    color: 'bg-green-500 text-white border-green-500',
-    variant: 'default' as const,
-    icon: 'Check',
-  },
-  INACTIVE: {
-    label: 'Inactive',
-    color: 'bg-gray-200 text-gray-800 border-gray-300',
-    variant: 'outline' as const,
-    icon: 'X',
-  },
-  HISTORICAL: {
-    label: 'Historical',
-    color: 'bg-blue-200 text-blue-800 border-blue-300',
-    variant: 'outline' as const,
-    icon: 'Archive',
-  },
-} as const
+export const partnershipStatusConfig: Record<
+  PartnershipStatus,
+  { label: string; tone: 'neutral' | 'success' | 'warning' }
+> = {
+  PROPOSED: { label: 'Proposed', tone: 'warning' },
+  ACTIVE: { label: 'Active', tone: 'success' },
+  INACTIVE: { label: 'Inactive', tone: 'neutral' },
+  HISTORICAL: { label: 'Historical', tone: 'neutral' },
+}

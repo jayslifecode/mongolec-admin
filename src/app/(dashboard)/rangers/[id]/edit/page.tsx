@@ -41,10 +41,10 @@ export default function RangerEditPage() {
 
   if (error || !ranger) {
     return (
-      <div className="space-y-4 max-w-4xl mx-auto">
-        <PageHeader title="Edit Park Partner" backHref="/rangers" />
+      <div className="mx-auto max-w-4xl space-y-6">
+        <PageHeader title="Edit park partner" backHref="/rangers" />
         <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
+          <AlertCircle className="h-4 w-4" aria-hidden="true" />
           <AlertDescription>{error?.message || 'Park partner not found'}</AlertDescription>
         </Alert>
       </div>
@@ -52,7 +52,7 @@ export default function RangerEditPage() {
   }
 
   return (
-    <div className="space-y-5 max-w-4xl mx-auto">
+    <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader
         title={getDisplayName(ranger.parkName)}
         description="Update park partner information"
@@ -60,7 +60,13 @@ export default function RangerEditPage() {
         lang={language}
         onLangChange={setLanguage}
       />
-      <RangerForm mode="edit" language={language} initialData={ranger} rangerId={rangerId} />
+      <RangerForm
+        mode="edit"
+        language={language}
+        initialData={ranger}
+        rangerId={rangerId}
+        onLanguageChange={setLanguage}
+      />
     </div>
   )
 }
