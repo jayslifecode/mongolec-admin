@@ -14,22 +14,13 @@ import { sidebarData } from './data/sidebar-data'
 import { NavGroup } from './nav-group'
 import { NavUser } from './nav-user'
 import { useAuthStore } from '@/stores/auth-store'
+import { visibleNavGroups } from '@/lib/navigation'
 
 export function AppSidebar() {
   const { collapsible, variant } = useLayout()
   const user = useAuthStore((s) => s.user)
 
-  const isSuperAdmin = user?.roles?.some((r) => r.role.name === 'super_admin') ?? false
-  const isRallyTenant = user?.tenant?.slug === 'rally-for-rangers'
-  const canSeeRally = isSuperAdmin || isRallyTenant
-
-  const filteredNavGroups = sidebarData.navGroups.map((group) => ({
-    ...group,
-    items: group.items.filter((item) => {
-      if (item.title === 'Rally') return canSeeRally
-      return true
-    }),
-  }))
+  const navGroups = visibleNavGroups(sidebarData.navGroups, user)
 
   const navUser = {
     name: user
@@ -57,8 +48,8 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        {filteredNavGroups.map((props) => (
-          <NavGroup key={props.title} {...props} />
+        {navGroups.map(({ title, items }) => (
+          <NavGroup key={title} title={title} items={items} />
         ))}
       </SidebarContent>
       <SidebarFooter>
