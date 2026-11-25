@@ -5,10 +5,10 @@ import { PageHeader } from '@/components/admin'
 
 export default function CreateTeamMemberPage() {
   return (
-    <div className="space-y-5 max-w-4xl mx-auto">
+    <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader
-        title="Add Team Member"
-        description="Add a new member to the organization team"
+        title="Add team member"
+        description="Add a person to your team page"
         backHref="/team"
       />
       <TeamMemberForm mode="create" />

@@ -5,8 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Users, Plus } from 'lucide-react'
 import { TeamTable } from '@/features/team/components/team-table'
 import { GET_TEAM_MEMBERS } from '@/graphql/queries/team'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle } from 'lucide-react'
+import { ListError } from '@/features/people/components/list-error'
 import Link from 'next/link'
 import { PageHeader, StatBar, EmptyState } from '@/components/admin'
 import type { TeamMember } from '@/features/team/types'
@@ -23,46 +22,40 @@ export default function TeamPage() {
 
   const members = data?.getTeamMembers ?? []
 
+  const active = members.filter((m) => m.isActive).length
+  const isInitialLoad = loading && !data
+
   const stats = [
-    { label: 'Total', value: loading ? '—' : members.length },
-    { label: 'Active', value: loading ? '—' : members.filter((m) => m.isActive).length, accent: 'green' as const },
-    { label: 'Inactive', value: loading ? '—' : members.filter((m) => !m.isActive).length },
+    { label: 'Total', value: members.length },
+    { label: 'Active', value: active },
+    { label: 'Inactive', value: members.length - active },
   ]
 
   return (
-    <div className="space-y-5 p-6">
+    <div className="space-y-6">
       <PageHeader
-        title="Team Members"
-        description="Manage organization team members"
+        title="Team"
+        description="The people shown on your team page, including inactive members"
         actions={
-          <Link href="/team/create">
-            <Button size="sm">
-              <Plus className="h-4 w-4 mr-1.5" />
-              Add Member
-            </Button>
-          </Link>
+          <Button size="sm" asChild>
+            <Link href="/team/create">
+              <Plus className="mr-1.5 h-4 w-4" />
+              Add member
+            </Link>
+          </Button>
         }
       />
 
-      <StatBar stats={stats} loading={loading} />
+      <StatBar stats={stats} loading={isInitialLoad} />
 
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>Failed to load team members: {error.message}</AlertDescription>
-        </Alert>
-      )}
-
-      {loading ? (
-        <div className="rounded-xl border border-border/60 bg-card">
-          <EmptyState icon={Users} title="Loading team members…" className="py-12" />
-        </div>
-      ) : members.length === 0 ? (
-        <div className="rounded-xl border border-border/60 bg-card">
+      {error && !data ? (
+        <ListError message={error.message} onRetry={() => refetch()} />
+      ) : !isInitialLoad && members.length === 0 ? (
+        <div className="border-border bg-card rounded-xl border">
           <EmptyState icon={Users} title="No team members yet" description="Add your first team member to get started." />
         </div>
       ) : (
-        <TeamTable members={members} loading={loading} onActionComplete={() => refetch()} />
+        <TeamTable members={members} loading={isInitialLoad} onActionComplete={() => refetch()} />
       )}
     </div>
   )
