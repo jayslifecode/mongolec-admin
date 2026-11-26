@@ -7,11 +7,13 @@ export const GET_RALLIES = gql`
   ${PAGINATION_FIELDS}
   query GetRallies(
     $status: RallyStatus
+    $isFeatured: Boolean
     $limit: Int
     $page: Int
   ) {
     getRallies(
       status: $status
+      isFeatured: $isFeatured
       limit: $limit
       page: $page
     ) {

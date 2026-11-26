@@ -25,13 +25,19 @@ const STATUS_TABS = [
   { value: 'draft', label: 'Draft', filter: 'DRAFT' as const },
 ]
 
+const FEATURED_FILTERS = [
+  { label: 'All rallies', featuredOnly: false },
+  { label: 'Featured', featuredOnly: true },
+]
+
 export default function RalliesPage() {
   const [activeTab, setActiveTab] = useState('all')
+  const [featuredOnly, setFeaturedOnly] = useState(false)
 
   const activeFilter = STATUS_TABS.find(t => t.value === activeTab)?.filter
 
   const { data, loading, error, refetch } = useQuery<GetRalliesData>(GET_RALLIES, {
-    variables: { status: activeFilter, limit: 100, page: 1 },
+    variables: { status: activeFilter, isFeatured: featuredOnly ? true : undefined, limit: 100, page: 1 },
     fetchPolicy: 'cache-and-network',
   })
 
@@ -69,13 +75,28 @@ export default function RalliesPage() {
       <StatBar stats={stats} loading={allLoading} />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="h-9" aria-label="Filter rallies by status">
-          {STATUS_TABS.map(tab => (
-            <TabsTrigger key={tab.value} value={tab.value} className="text-xs px-4">
-              {tab.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <div className="flex flex-wrap items-center gap-3">
+          <TabsList className="h-9" aria-label="Filter rallies by status">
+            {STATUS_TABS.map(tab => (
+              <TabsTrigger key={tab.value} value={tab.value} className="text-xs px-4">
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          <div role="group" aria-label="Filter rallies by featured" className="inline-flex rounded-lg bg-muted p-[3px]">
+            {FEATURED_FILTERS.map(option => (
+              <button
+                key={option.label}
+                type="button"
+                aria-pressed={featuredOnly === option.featuredOnly}
+                onClick={() => setFeaturedOnly(option.featuredOnly)}
+                className="h-[calc(100%-1px)] rounded-md px-4 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {STATUS_TABS.map(tab => (
           <TabsContent key={tab.value} value={tab.value} className="mt-4">

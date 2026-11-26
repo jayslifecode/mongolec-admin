@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { MoreHorizontal, Trophy, Calendar, Edit, Trash2, Check } from 'lucide-react'
+import { MoreHorizontal, Trophy, Calendar, Edit, Trash2, Check, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useMutation } from '@apollo/client/react'
@@ -132,8 +132,16 @@ function buildColumns(
               </div>
             )}
             <div className="min-w-0 flex-1">
-              <div className="font-medium truncate text-sm">
-                {title || <span className="text-muted-foreground italic">Untitled Rally</span>}
+              <div className="flex items-center gap-2">
+                <span className="font-medium truncate text-sm">
+                  {title || <span className="text-muted-foreground italic">Untitled Rally</span>}
+                </span>
+                {rally.isFeatured && (
+                  <StatusBadge tone="primary" className="flex-shrink-0 px-1.5 py-0">
+                    <Sparkles className="h-3 w-3" aria-hidden="true" />
+                    Featured
+                  </StatusBadge>
+                )}
               </div>
               {rally.slug && (
                 <div className="text-xs text-muted-foreground font-mono">{rally.slug}</div>

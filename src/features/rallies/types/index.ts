@@ -13,7 +13,9 @@ export interface Rally {
   maxParticipants?: number
   currentParticipants?: number
   heroImage?: string
-  heroVideo?: string
+  heroVideo?: string | null
+  /** Shown in the public home-page hero. Only one rally is featured at a time. */
+  isFeatured?: boolean
   /** "Photos by: …" credit under the gallery (round 4). */
   photoCredit?: string | null
   /** Amounts quoted in the acceptance letter (round 4). */

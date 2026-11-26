@@ -11,6 +11,7 @@ const valid: RallyFormValues = {
   maxParticipants: '40',
   photoCredit: 'Someone',
   heroVideo: '',
+  isFeatured: false,
   currency: 'USD',
   minimumContribution: '11000',
   deposit: '5750',

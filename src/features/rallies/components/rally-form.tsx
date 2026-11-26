@@ -20,6 +20,7 @@ import {
   SingleImageUploadRef,
 } from "@/components/single-image-upload";
 import { FormField, FormSection } from "@/components/admin";
+import { RallyVideoUpload } from "./rally-video-upload";
 import { Loader2, Save } from "lucide-react";
 import {
   CREATE_RALLY,
@@ -40,7 +41,7 @@ const FIELD_ORDER: FieldKey[] = [
 
 const FIELD_DOM_ID: Record<FieldKey, string> = {
   titleEn: "title-en", slug: "slug", duration: "duration", startDate: "startDate", endDate: "endDate",
-  applicationDeadline: "applicationDeadline", maxParticipants: "maxParticipants", heroVideo: "heroVideo",
+  applicationDeadline: "applicationDeadline", maxParticipants: "maxParticipants", heroVideo: "heroVideo", isFeatured: "isFeatured",
   photoCredit: "photoCredit", minimumContribution: "terms-minimumContribution", deposit: "terms-deposit",
   nonRefundable: "terms-nonRefundable", currency: "terms-currency", finalPaymentDue: "terms-finalPaymentDue",
 };
@@ -65,7 +66,8 @@ export function RallyForm({
   const [createRally, { loading: isCreating }] = useMutation(CREATE_RALLY);
   const [updateRally, { loading: isUpdating }] = useMutation(UPDATE_RALLY);
   const [isUploading, setIsUploading] = useState(false);
-  const isSubmitting = isCreating || isUpdating || isUploading;
+  const [isVideoUploading, setIsVideoUploading] = useState(false);
+  const isSubmitting = isCreating || isUpdating || isUploading || isVideoUploading;
   const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
   const [isSlugEdited, setIsSlugEdited] = useState(mode !== "create");
   const isReadOnly = mode === "view";
@@ -92,6 +94,7 @@ export function RallyForm({
         maxParticipants: initialData.maxParticipants ? String(initialData.maxParticipants) : "",
         heroImage: initialData.heroImage || "",
         heroVideo: initialData.heroVideo || "",
+        isFeatured: initialData.isFeatured ?? false,
         photoCredit: initialData.photoCredit || "",
         isPlaceholder: initialData.isPlaceholder ?? false,
         terms: termsToForm(initialData.acceptanceTerms),
@@ -112,6 +115,7 @@ export function RallyForm({
       maxParticipants: "",
       heroImage: "",
       heroVideo: "",
+      isFeatured: false,
       photoCredit: "",
       isPlaceholder: false,
       terms: EMPTY_TERMS_FORM,
@@ -163,6 +167,7 @@ export function RallyForm({
     maxParticipants: formData.maxParticipants,
     photoCredit: formData.photoCredit,
     heroVideo: formData.heroVideo.trim(),
+    isFeatured: formData.isFeatured,
     ...formData.terms,
   });
 
@@ -208,6 +213,7 @@ export function RallyForm({
         maxParticipants: formData.maxParticipants.trim() ? Number(formData.maxParticipants) : null,
         heroImage: heroImageUrl,
         heroVideo: formData.heroVideo.trim() || null,
+        isFeatured: formData.isFeatured,
         photoCredit: formData.photoCredit.trim() || null,
         isPlaceholder: formData.isPlaceholder,
         acceptanceTerms: termsFromForm(formData.terms),
@@ -444,19 +450,15 @@ export function RallyForm({
         )}
       </FormSection>
 
-      <FormSection title="Hero Video" description="Add a video URL (YouTube, Vimeo, etc.)">
-        <FormField id="heroVideo" label="Video URL" error={errors.heroVideo}>
-          {(c) => (
-            <Input
-              {...c}
-              type="url"
-              value={formData.heroVideo}
-              onChange={(e) => setField("heroVideo", e.target.value, "heroVideo")}
-              placeholder="https://www.youtube.com/watch?v=..."
-              disabled={isReadOnly}
-            />
-          )}
-        </FormField>
+      <FormSection title="Featured video">
+        <RallyVideoUpload
+          id="heroVideo"
+          value={formData.heroVideo}
+          onChange={(url) => setField("heroVideo", url, "heroVideo")}
+          onUploadingChange={setIsVideoUploading}
+          error={errors.heroVideo}
+          disabled={isReadOnly}
+        />
       </FormSection>
 
       <FormSection title="Photo credit" description='Shown under the gallery as "Photos by: …"'>
@@ -574,6 +576,22 @@ export function RallyForm({
             disabled={isReadOnly}
           />
         </div>
+
+        <div className="flex items-center justify-between gap-4">
+          <div className="space-y-0.5">
+            <Label htmlFor="isFeatured">Feature on home page</Label>
+            <p id="isFeatured-description" className="text-sm text-muted-foreground">
+              Only one rally is featured at a time; turning this on replaces the current one.
+            </p>
+          </div>
+          <Switch
+            id="isFeatured"
+            checked={formData.isFeatured}
+            onCheckedChange={(checked) => setField("isFeatured", checked)}
+            aria-describedby="isFeatured-description"
+            disabled={isReadOnly}
+          />
+        </div>
       </FormSection>
 
       {!isReadOnly && (
@@ -585,7 +603,7 @@ export function RallyForm({
               ) : (
                 <Save className="mr-2 h-4 w-4" aria-hidden="true" />
               )}
-              {isUploading ? "Uploading image…" : mode === "create" ? "Create Rally" : "Update Rally"}
+              {isUploading ? "Uploading image…" : isVideoUploading ? "Uploading video…" : mode === "create" ? "Create Rally" : "Update Rally"}
             </Button>
             <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting}>
               Cancel
