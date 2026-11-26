@@ -17,6 +17,7 @@ export const RALLY_FIELDS = gql`
     heroVideo
     photoCredit
     acceptanceTerms
+    isFeatured
     isPlaceholder
     isRecruiting
     applicationDeadline

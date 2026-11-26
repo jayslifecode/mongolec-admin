@@ -12,6 +12,7 @@ export type RallyFormValues = {
   maxParticipants: string
   photoCredit: string
   heroVideo: string
+  isFeatured: boolean
   currency: string
   minimumContribution: string
   deposit: string
@@ -73,6 +74,7 @@ const rallyFormSchema = z
     }, 'Enter at least 1, or leave empty for unlimited'),
     photoCredit: z.string().max(PHOTO_CREDIT_MAX, `Keep the photo credit under ${PHOTO_CREDIT_MAX} characters`),
     heroVideo: optionalUrl,
+    isFeatured: z.boolean(),
     currency: z.string().trim().refine((v) => v === '' || /^[A-Za-z]{3}$/.test(v), 'Use a 3-letter code such as USD'),
     minimumContribution: optionalAmount('Minimum contribution'),
     deposit: optionalAmount('Deposit'),
