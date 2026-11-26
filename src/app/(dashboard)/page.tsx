@@ -20,6 +20,11 @@ import { GET_APPLICATION_STATS } from '@/graphql/queries/applications'
 import { GET_RALLIES } from '@/graphql/queries/rallies'
 import { GET_MERCH_ORDERS } from '@/graphql/queries/merch-orders'
 import { type MerchOrder, paidPayment } from '@/features/merch/types/orders'
+import { sidebarData } from '@/components/layout/data/sidebar-data'
+import { canSeePage } from '@/lib/navigation'
+import { useAuthStore } from '@/stores/auth-store'
+
+const MERCH_ORDERS_PATH = '/merch/orders'
 
 function CardError({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
@@ -121,9 +126,12 @@ export default function DashboardPage() {
   const { data: rallyData, loading: rallyLoading, error: rallyError, refetch: refetchRally } = useQuery<RalliesData>(GET_RALLIES, {
     variables: { status: 'ONGOING', limit: 10 },
   })
+  // Shop figures only for people who have the Merchandise menu (not a rally manager).
+  const viewer = useAuthStore((s) => s.user)
+  const showMerch = canSeePage(MERCH_ORDERS_PATH, sidebarData.navGroups, viewer)
   const { data: ordersData, loading: ordersLoading, error: ordersError, refetch: refetchOrders } = useQuery<{ getMerchOrders: MerchOrder[] }>(
     GET_MERCH_ORDERS,
-    { variables: { limit: 500 } }
+    { variables: { limit: 500 }, skip: !showMerch }
   )
 
   const nom = nomData?.getNominationStats
@@ -194,38 +202,40 @@ export default function DashboardPage() {
       </div>
 
       {/* Merch sales summary */}
-      <Card className="border border-border/60">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <ShoppingBag className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-            Merch Sales
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {ordersError ? (
-            <CardError message={ordersError.message} onRetry={() => void refetchOrders()} />
-          ) : ordersLoading ? (
-            <Skeleton className="h-16 w-full" />
-          ) : (
-            <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
-              <SalesStat label="Net revenue" value={mnt(netRevenue)} />
-              <SalesStat label="Gross sales" value={mnt(grossSales)} />
-              <SalesStat label="QPay fees" value={mnt(totalFees)} />
-              <SalesStat
-                label="Paid orders"
-                value={String(paidOrders.length)}
-                sub={awaitingCount ? `${awaitingCount} awaiting payment` : undefined}
-              />
-            </div>
-          )}
-          <Link
-            href="/merch/orders"
-            className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-          >
-            View orders <ArrowRight className="h-3 w-3" />
-          </Link>
-        </CardContent>
-      </Card>
+      {showMerch && (
+        <Card className="border border-border/60">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <ShoppingBag className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              Merch Sales
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {ordersError ? (
+              <CardError message={ordersError.message} onRetry={() => void refetchOrders()} />
+            ) : ordersLoading ? (
+              <Skeleton className="h-16 w-full" />
+            ) : (
+              <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
+                <SalesStat label="Net revenue" value={mnt(netRevenue)} />
+                <SalesStat label="Gross sales" value={mnt(grossSales)} />
+                <SalesStat label="QPay fees" value={mnt(totalFees)} />
+                <SalesStat
+                  label="Paid orders"
+                  value={String(paidOrders.length)}
+                  sub={awaitingCount ? `${awaitingCount} awaiting payment` : undefined}
+                />
+              </div>
+            )}
+            <Link
+              href={MERCH_ORDERS_PATH}
+              className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+            >
+              View orders <ArrowRight className="h-3 w-3" />
+            </Link>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Status breakdown */}
       <div className="grid gap-4 lg:grid-cols-2">
