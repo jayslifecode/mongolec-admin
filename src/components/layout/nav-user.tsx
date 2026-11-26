@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuthStore } from "@/stores/auth-store";
 import { LOGOUT } from "@/graphql/mutations/auth";
+import { initials as initialsOf } from "@/lib/ui/initials";
 
 type NavUserProps = {
   user: {
@@ -48,11 +49,7 @@ export function NavUser({ user }: NavUserProps) {
     }
   };
 
-  const initials = user.name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase();
+  const initials = initialsOf(user.name);
 
   return (
     <SidebarMenu>

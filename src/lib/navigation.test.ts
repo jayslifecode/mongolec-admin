@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { sidebarData } from '@/components/layout/data/sidebar-data'
-import { RALLY_TENANT_SLUG, tenantForPath, visibleNavGroups } from './navigation'
+import { RALLY_TENANT_SLUG, canSeePage, tenantForPath, visibleNavGroups } from './navigation'
 
 const groups = sidebarData.navGroups
 const titles = (list: { title: string }[]) => list.map((g) => g.title)
@@ -67,5 +67,24 @@ describe('tenantForPath', () => {
   it('never matches on a shared prefix alone (/team-x is not /team)', () => {
     expect(tenantForPath('/teams', groups)).toBeNull()
     expect(tenantForPath('/rallies-archive', groups)).toBeNull()
+  })
+})
+
+describe('canSeePage', () => {
+  it('keeps shop pages and figures away from a rally manager', () => {
+    expect(canSeePage('/merch/orders', groups, rallyManager)).toBe(false)
+    expect(canSeePage('/merch', groups, rallyManager)).toBe(false)
+    expect(canSeePage('/applications', groups, rallyManager)).toBe(true)
+    expect(canSeePage('/applications/abc', groups, rallyManager)).toBe(true)
+  })
+
+  it('lets super admins and other organisations’ admins see the shop', () => {
+    expect(canSeePage('/merch/orders', groups, superAdmin)).toBe(true)
+    expect(canSeePage('/merch/orders', groups, mecAdmin)).toBe(true)
+  })
+
+  it('shows nothing beyond the overview until the user has loaded', () => {
+    expect(canSeePage('/merch/orders', groups, null)).toBe(false)
+    expect(canSeePage('/', groups, null)).toBe(true)
   })
 })

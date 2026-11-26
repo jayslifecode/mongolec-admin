@@ -43,6 +43,16 @@ export function visibleNavGroups(groups: NavGroup[], viewer: NavViewer | null): 
 }
 
 /**
+ * True when `pathname` sits in a menu section the viewer may see. Pages use it to leave out
+ * panels from other sections, e.g. the dashboard's shop figures for a rally manager.
+ */
+export function canSeePage(pathname: string, groups: NavGroup[], viewer: NavViewer | null): boolean {
+  return visibleNavGroups(groups, viewer)
+    .flatMap(groupUrls)
+    .some((url) => pathname === url || isUnder(pathname, url))
+}
+
+/**
  * Organisation a page works in: the owner of the section the page belongs to, or null for
  * pages that use the signed-in user's own organisation.
  */
